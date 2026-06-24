@@ -467,10 +467,15 @@ async function buildResumeDoc(d, cb){
   footer();
   return doc;
 }
+function uniqueStamp(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  const rnd=Math.floor(Math.random()*1296).toString(36).padStart(2,"0"); // avoid same-second clashes
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}_${rnd}`;
+}
 async function downloadResumePdf(d, cb){
   const doc=await buildResumeDoc(d, cb);
-  const fname=(d.name||"resume").replace(/[^\wЀ-ӿ\- ]/g,"").trim().replace(/\s+/g,"_")||"resume";
-  doc.save(`TLNT_${fname}.pdf`);
+  const base=(d.name||d.head||"resume").replace(/[^\wЀ-ӿ\- ]/g,"").trim().replace(/\s+/g,"_").slice(0,40)||"resume";
+  doc.save(`TLNT_${base}_${uniqueStamp()}.pdf`);
 }
 
 /* ============================ share payload ============================ */
