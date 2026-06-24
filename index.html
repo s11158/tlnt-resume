@@ -4,162 +4,129 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TLNT.AE · Resume Formatter</title>
-<meta name="description" content="Превращает любое резюме (PDF, Word, TXT, фото) в единый брендированный PDF TLNT.AE. Всё обрабатывается локально в браузере." />
+<meta name="description" content="Превращает любое резюме (PDF, Word, TXT, фото) в единый брендированный PDF TLNT.AE. Сохраняет фото и все данные, хранит базу и выдаёт ссылку." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --graphite:#2E2A26;
-  --ink:#3A352F;
-  --muted:#7A7065;
-  --beige:#B08D57;
-  --beige-deep:#9A7842;
-  --beige-soft:#D9C4A3;
-  --line:#E7DECF;
-  --bg:#F3EDE3;
-  --bg2:#ECE3D5;
-  --card:#FFFFFF;
-  --shadow:0 12px 40px rgba(46,42,38,.10);
-  --radius:14px;
+  --graphite:#2E2A26;--ink:#3A352F;--muted:#7A7065;--beige:#B08D57;--beige-deep:#9A7842;
+  --beige-soft:#D9C4A3;--line:#E7DECF;--bg:#F3EDE3;--bg2:#ECE3D5;--card:#FFFFFF;
+  --shadow:0 12px 40px rgba(46,42,38,.10);--radius:14px;
 }
-*{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  font-family:'Roboto',system-ui,-apple-system,Segoe UI,sans-serif;
-  color:var(--ink);
-  background:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%);
-  min-height:100vh;
-  -webkit-font-smoothing:antialiased;
-}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:'Roboto',system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);
+  background:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%);min-height:100vh;-webkit-font-smoothing:antialiased}
 a{color:var(--beige-deep)}
 .wrap{max-width:1280px;margin:0 auto;padding:22px 26px 80px}
-
-/* Top bar */
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 2px 22px}
 .brand{display:flex;align-items:center;gap:13px}
-.logo-mark{
-  font-weight:700;letter-spacing:2.5px;font-size:22px;color:var(--graphite);
-  border:2px solid var(--graphite);padding:7px 12px;border-radius:8px;line-height:1;position:relative;
-}
+.logo-mark{font-weight:700;letter-spacing:2.5px;font-size:22px;color:var(--graphite);border:2px solid var(--graphite);padding:7px 12px;border-radius:8px;line-height:1}
 .logo-mark .dot{color:var(--beige)}
 .brand .sub{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-top:3px}
 .brand h1{font-size:15px;margin:0;font-weight:500;color:var(--ink)}
 .topbar .right{font-size:12px;color:var(--muted);text-align:right;max-width:330px;line-height:1.5}
-.topbar .right b{color:var(--ink);font-weight:500}
-
-/* Layout */
+.lock{display:inline-flex;align-items:center;gap:6px;background:#EEF6EE;color:#3c7a4a;border:1px solid #cfe6cf;border-radius:20px;padding:5px 12px;font-size:12px}
 .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:26px}
 @media(max-width:980px){.grid{grid-template-columns:1fr}}
-
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
 .panel{padding:22px}
 .panel h2{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--beige-deep);margin:0 0 14px;font-weight:700}
 .muted{color:var(--muted);font-size:13px;line-height:1.55}
-
-/* Dropzone */
-.drop{
-  border:2px dashed var(--beige-soft);border-radius:12px;background:#FBF7F0;
-  padding:30px 22px;text-align:center;cursor:pointer;transition:.18s;
-}
+.drop{border:2px dashed var(--beige-soft);border-radius:12px;background:#FBF7F0;padding:30px 22px;text-align:center;cursor:pointer;transition:.18s}
 .drop:hover,.drop.drag{border-color:var(--beige);background:#FBF3E7}
 .drop .ic{font-size:30px;line-height:1}
 .drop .big{font-size:15px;color:var(--ink);font-weight:500;margin:10px 0 4px}
 .drop .small{font-size:12px;color:var(--muted)}
 .drop input{display:none}
-
 .tabs{display:flex;gap:8px;margin-bottom:14px}
 .tab{flex:1;padding:9px 10px;text-align:center;font-size:13px;border:1px solid var(--line);border-radius:9px;background:#FBF7F0;cursor:pointer;color:var(--muted);transition:.15s}
 .tab.active{background:var(--graphite);color:#fff;border-color:var(--graphite)}
-
 textarea.paste{width:100%;min-height:150px;border:1px solid var(--line);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;resize:vertical;color:var(--ink);background:#FBF7F0}
 textarea.paste:focus{outline:none;border-color:var(--beige)}
-
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
 .field{display:flex;flex-direction:column;gap:5px;margin-top:12px}
 .field label{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:500}
-.field input,.field textarea,select{
-  border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--ink);background:#fff;width:100%
-}
-.field textarea{min-height:74px;resize:vertical;line-height:1.5}
+.field input,.field textarea,select{border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--ink);background:#fff;width:100%}
+.field textarea{min-height:60px;resize:vertical;line-height:1.5}
 .field input:focus,.field textarea:focus,select:focus{outline:none;border-color:var(--beige)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:520px){.two{grid-template-columns:1fr}}
-
 .toggle{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);cursor:pointer;user-select:none}
 .toggle input{width:18px;height:18px;accent-color:var(--beige-deep)}
-
 button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-size:14px;font-weight:500;transition:.15s}
 .btn-primary{background:var(--graphite);color:#fff;padding:13px 20px}
-.btn-primary:hover{background:#1f1c19}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary:hover{background:#1f1c19}.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-accent{background:var(--beige-deep);color:#fff;padding:13px 20px}
+.btn-accent:hover{background:#876a39}.btn-accent:disabled{opacity:.5;cursor:not-allowed}
 .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);padding:11px 16px}
 .btn-ghost:hover{border-color:var(--beige);color:var(--beige-deep)}
 .btn-mini{background:#F3ECE0;color:var(--muted);padding:5px 9px;font-size:12px;border-radius:7px}
 .btn-mini:hover{background:#E9DECB;color:var(--ink)}
-
-/* Sections editor */
 .sec{border:1px solid var(--line);border-radius:11px;margin-top:12px;overflow:hidden;background:#FCFAF6}
 .sec-head{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#F6EFE3}
 .sec-head input{flex:1;border:none;background:transparent;font-weight:700;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:var(--beige-deep)}
 .sec-head input:focus{outline:none}
-.sec textarea{border:none;border-top:1px solid var(--line);border-radius:0;min-height:90px}
+.sec textarea{border:none;border-top:1px solid var(--line);border-radius:0;min-height:80px}
 .handle{cursor:grab;color:var(--beige-soft);font-size:15px;padding:0 4px}
-
-/* Status */
+.photo-edit{display:flex;align-items:center;gap:12px}
+#photoThumb{width:54px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:none}
 #status{margin-top:14px;font-size:13px;color:var(--muted);min-height:18px}
 .bar{height:6px;background:#EFE7D8;border-radius:6px;overflow:hidden;margin-top:8px;display:none}
 .bar.show{display:block}
 .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--beige),var(--beige-deep));transition:width .2s}
 .chip{display:inline-flex;align-items:center;gap:6px;background:#F3ECE0;border:1px solid var(--line);border-radius:20px;padding:4px 11px;font-size:12px;color:var(--ink);margin:6px 6px 0 0}
 .chip b{font-weight:500}
-.chip .x{cursor:pointer;color:var(--muted);font-weight:700}
-
-/* Preview */
 .preview-shell{position:sticky;top:18px}
-.preview-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.preview-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap}
 .preview-toolbar .t{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--beige-deep);font-weight:700}
-.page{
-  background:#fff;color:#2E2A26;aspect-ratio:1/1.414;width:100%;border:1px solid var(--line);border-radius:8px;
-  box-shadow:var(--shadow);overflow:hidden;padding:7.5% 8%;font-size:clamp(7px,1.15vw,12px);position:relative
-}
-.p-mast{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.5px solid var(--beige);padding-bottom:3.2%;}
-.p-logo{font-weight:700;letter-spacing:.12em;font-size:1.8em;color:var(--graphite)}
-.p-logo .dot{color:var(--beige)}
-.p-tag{font-size:.72em;letter-spacing:.28em;text-transform:uppercase;color:var(--beige-deep);text-align:right;line-height:1.5;margin-top:.4em}
-.p-logo-img{max-height:3.4em;max-width:42%;object-fit:contain}
-.p-name{font-size:2.05em;font-weight:700;color:var(--graphite);margin:5% 0 0;line-height:1.1}
-.p-head{font-size:1.02em;color:var(--muted);margin-top:.5%;font-weight:400}
-.p-contacts{font-size:.86em;color:var(--ink);margin-top:2.4%;line-height:1.6}
-.p-contacts span{color:var(--beige-deep);margin:0 .45em}
-.p-sec{margin-top:4.4%}
-.p-sec h3{font-size:.86em;letter-spacing:.16em;text-transform:uppercase;color:var(--beige-deep);font-weight:700;margin:0 0 1.6%;display:flex;align-items:center;gap:.7em}
+.page{background:#fff;color:#2E2A26;aspect-ratio:1/1.414;width:100%;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;padding:6% 6.5%;font-size:clamp(7px,1.1vw,11px);position:relative}
+.p-mast{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.4px solid var(--beige);padding-bottom:2.6%}
+.p-logo{font-weight:700;letter-spacing:.1em;font-size:1.7em;color:var(--graphite)}.p-logo .dot{color:var(--beige)}
+.p-tag{font-size:.68em;letter-spacing:.26em;text-transform:uppercase;color:var(--beige-deep);text-align:right;line-height:1.5;margin-top:.3em}
+.p-logo-img{max-height:3.2em;max-width:42%;object-fit:contain}
+.p-headrow{display:flex;gap:4%;align-items:flex-start;margin-top:3.5%}
+.p-headmain{flex:1;min-width:0}
+.p-photowrap{flex:0 0 21%}
+.p-photo{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+.p-name{font-size:1.95em;font-weight:700;color:var(--graphite);line-height:1.08}
+.p-head{font-size:1em;color:var(--muted);margin-top:.4%;font-weight:400}
+.p-contacts{font-size:.82em;color:var(--ink);margin-top:2%;line-height:1.6}
+.p-contacts span{color:var(--beige-deep);margin:0 .4em}
+.p-personal{font-size:.76em;color:var(--muted);margin-top:1.6%;line-height:1.5}
+.p-sec{margin-top:3.4%}
+.p-sec h3{font-size:.82em;letter-spacing:.14em;text-transform:uppercase;color:var(--beige-deep);font-weight:700;margin:0 0 1.2%;display:flex;align-items:center;gap:.7em}
 .p-sec h3::after{content:"";flex:1;height:1px;background:var(--line)}
-.p-sec .body{font-size:.95em;line-height:1.55;color:var(--ink);white-space:pre-wrap}
-.p-sec .li{display:flex;gap:.55em;margin:.2em 0}
+.p-sec .body{font-size:.9em;line-height:1.45;color:var(--ink)}
+.p-sec .li{display:flex;gap:.5em;margin:.12em 0}
 .p-sec .li::before{content:"•";color:var(--beige)}
-.p-foot{position:absolute;left:8%;right:8%;bottom:4.5%;border-top:1px solid var(--line);padding-top:1.8%;display:flex;justify-content:space-between;font-size:.74em;color:var(--muted)}
+.p-sec .sp{height:.4em}
+.p-foot{position:absolute;left:6.5%;right:6.5%;bottom:3.5%;border-top:1px solid var(--line);padding-top:1.4%;display:flex;justify-content:space-between;font-size:.72em;color:var(--muted)}
 .empty-preview{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--beige-soft);text-align:center;gap:10px}
-
+.lib-item{display:flex;align-items:center;gap:11px;padding:10px;border:1px solid var(--line);border-radius:10px;margin-top:8px;background:#FCFAF6}
+.lib-item img{width:34px;height:44px;object-fit:cover;border-radius:5px;border:1px solid var(--line);flex:0 0 auto;background:#F0E8DA}
+.lib-item .meta{flex:1;min-width:0}
+.lib-item .meta b{display:block;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-item .meta small{color:var(--muted);font-size:11.5px}
+.lib-empty{font-size:13px;color:var(--muted);padding:8px 2px}
+.modal-bg{position:fixed;inset:0;background:rgba(46,42,38,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:14px;max-width:540px;width:100%;padding:24px;box-shadow:var(--shadow)}
+.modal h3{margin:0 0 6px;font-size:17px;color:var(--graphite)}
+.linkbox{display:flex;gap:8px;margin-top:14px}
+.linkbox input{flex:1;border:1px solid var(--line);border-radius:9px;padding:11px;font-size:12px;font-family:'Roboto Mono',monospace;color:var(--ink)}
 .footer-note{margin-top:30px;text-align:center;font-size:12px;color:var(--muted)}
-.lock{display:inline-flex;align-items:center;gap:6px;background:#EEF6EE;color:#3c7a4a;border:1px solid #cfe6cf;border-radius:20px;padding:5px 12px;font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
-
   <div class="topbar">
     <div class="brand">
       <div class="logo-mark">TLNT<span class="dot">.</span>AE</div>
-      <div>
-        <div class="sub">Talent Agency · UAE</div>
-        <h1>Resume Formatter</h1>
-      </div>
+      <div><div class="sub">Talent Agency · UAE</div><h1>Resume Formatter</h1></div>
     </div>
-    <div class="right">
-      Превращает любое резюме — PDF, Word, TXT или фото — в&nbsp;единый брендированный PDF.
-      <br><span class="lock">🔒 Всё обрабатывается локально в браузере</span>
-    </div>
+    <div class="right">Любое резюме → единый PDF TLNT.AE. Сохраняет фото и все данные.<br>
+      <span class="lock">🔒 Обработка локально в браузере</span></div>
   </div>
 
   <div class="grid">
@@ -171,63 +138,61 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
           <div class="tab active" data-mode="file">📎 Файл</div>
           <div class="tab" data-mode="text">📝 Текст</div>
         </div>
-
         <div id="fileMode">
           <label class="drop" id="drop">
             <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,image/*">
             <div class="ic">⬆️</div>
             <div class="big">Перетащите файл или нажмите</div>
-            <div class="small">PDF · DOCX · TXT · PNG · JPG &nbsp;(можно несколько страниц)</div>
+            <div class="small">PDF · DOCX · TXT · PNG · JPG &nbsp;(фото из PDF переносится автоматически)</div>
           </label>
-          <div class="row" style="gap:8px">
-            <label class="field" style="flex:1;margin-top:6px">
-              <span style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)">Язык для распознавания фото (OCR)</span>
-              <select id="ocrLang">
-                <option value="eng+rus">Английский + Русский</option>
-                <option value="eng">Только английский</option>
-                <option value="rus">Только русский</option>
-                <option value="eng+rus+ara">Англ. + Рус. + Арабский</option>
-              </select>
-            </label>
-          </div>
+          <label class="field" style="margin-top:8px">
+            <span style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)">Язык распознавания фото (OCR)</span>
+            <select id="ocrLang">
+              <option value="eng+rus">Английский + Русский</option>
+              <option value="eng">Только английский</option>
+              <option value="rus">Только русский</option>
+              <option value="eng+rus+ara">Англ. + Рус. + Арабский</option>
+            </select>
+          </label>
           <div id="fileChips"></div>
         </div>
-
         <div id="textMode" style="display:none">
           <textarea class="paste" id="pasteArea" placeholder="Вставьте текст резюме сюда…"></textarea>
-          <div class="row">
-            <button class="btn-ghost" id="parsePaste">Разобрать текст →</button>
-          </div>
+          <div class="row"><button class="btn-ghost" id="parsePaste">Разобрать текст →</button></div>
         </div>
-
         <div id="status"></div>
         <div class="bar" id="bar"><i></i></div>
-
         <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
           <label class="toggle"><input type="checkbox" id="cleanToggle" checked>
-            <span>Убирать упоминания источников (LinkedIn, Indeed, hh.ru, ContactOut и&nbsp;т.&nbsp;п.) и&nbsp;водяные знаки</span></label>
+            <span>Убирать упоминания источников (LinkedIn, hh.ru, ContactOut…) и водяные знаки</span></label>
         </div>
       </div>
 
       <div class="card panel" style="margin-top:22px" id="editorCard">
         <h2>2 · Данные кандидата</h2>
-        <p class="muted" id="editorHint">Загрузите резюме слева — поля заполнятся автоматически. Здесь можно всё&nbsp;поправить перед генерацией.</p>
-
+        <p class="muted" id="editorHint">Загрузите резюме слева — поля и фото заполнятся автоматически, ничего не теряется. Здесь можно всё поправить.</p>
         <div id="editorBody" style="display:none">
+          <div class="field"><label>Фото</label>
+            <div class="photo-edit">
+              <img id="photoThumb" alt="">
+              <label class="btn-ghost" style="position:relative;overflow:hidden">Загрузить / заменить
+                <input type="file" id="photoInput" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+              <button class="btn-mini" id="photoRemove" style="display:none">Убрать фото</button>
+            </div>
+          </div>
           <div class="field"><label>Имя</label><input id="fName" placeholder="Имя Фамилия"></div>
-          <div class="field"><label>Должность / Заголовок</label><input id="fHead" placeholder="например, Senior Sales Manager"></div>
+          <div class="field"><label>Должность / Заголовок</label><input id="fHead" placeholder="например, Head of Sales"></div>
           <div class="two">
             <div class="field"><label>Email</label><input id="fEmail" placeholder="name@email.com"></div>
             <div class="field"><label>Телефон</label><input id="fPhone" placeholder="+971 …"></div>
           </div>
           <div class="two">
             <div class="field"><label>Локация</label><input id="fLoc" placeholder="Dubai, UAE"></div>
-            <div class="field"><label>Ссылка (LinkedIn/портфолио) — необязательно</label><input id="fLink" placeholder="github.com/…"></div>
+            <div class="field"><label>Ссылка — необязательно</label><input id="fLink" placeholder="github.com/…"></div>
           </div>
-
+          <div class="field"><label>Личные данные (возраст, гражданство, занятость…)</label><textarea id="fPersonal" placeholder="по одному пункту на строке"></textarea></div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px">
-            <h2 style="margin:0">Разделы</h2>
-            <button class="btn-mini" id="addSec">+ Добавить раздел</button>
+            <h2 style="margin:0">Разделы</h2><button class="btn-mini" id="addSec">+ Добавить раздел</button>
           </div>
           <div id="sections"></div>
         </div>
@@ -235,15 +200,19 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 
       <div class="card panel" style="margin-top:22px">
         <h2>3 · Логотип в PDF</h2>
-        <p class="muted">По умолчанию ставится текстовый логотип <b>TLNT.AE</b>. Можно загрузить свой PNG/SVG (прозрачный фон — лучше всего).</p>
+        <p class="muted">По умолчанию — текстовый логотип <b>TLNT.AE</b>. Можно загрузить свой PNG/SVG.</p>
         <div class="row">
-          <label class="btn-ghost" style="position:relative;overflow:hidden">
-            Загрузить логотип
-            <input type="file" id="logoInput" accept="image/png,image/jpeg,image/svg+xml" style="position:absolute;inset:0;opacity:0;cursor:pointer">
-          </label>
+          <label class="btn-ghost" style="position:relative;overflow:hidden">Загрузить логотип
+            <input type="file" id="logoInput" accept="image/png,image/jpeg,image/svg+xml" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
           <button class="btn-mini" id="logoReset" style="display:none">Вернуть текстовый</button>
           <span id="logoName" class="muted"></span>
         </div>
+      </div>
+
+      <div class="card panel" style="margin-top:22px">
+        <h2>4 · База резюме</h2>
+        <p class="muted">Сохранённые резюме хранятся в этом браузере. У каждого — своя ссылка, которую можно открыть из любого браузера.</p>
+        <div id="libList"></div>
       </div>
     </div>
 
@@ -252,572 +221,188 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
       <div class="preview-shell">
         <div class="preview-toolbar">
           <span class="t">Предпросмотр PDF</span>
-          <button class="btn-primary" id="downloadBtn" disabled>⬇ Скачать PDF</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn-accent" id="saveBtn" disabled style="padding:11px 16px">🔗 Сохранить + ссылка</button>
+            <button class="btn-primary" id="downloadBtn" disabled style="padding:11px 16px">⬇ PDF</button>
+          </div>
         </div>
         <div class="page" id="page">
-          <div class="empty-preview">
-            <div style="font-size:34px">📄</div>
-            <div>Здесь появится готовое резюме<br>в фирменном стиле TLNT.AE</div>
-          </div>
+          <div class="empty-preview"><div style="font-size:34px">📄</div>
+            <div>Здесь появится резюме в фирменном стиле TLNT.AE</div></div>
         </div>
         <div style="margin-top:10px;text-align:center" class="muted" id="multiNote"></div>
       </div>
     </div>
   </div>
+  <div class="footer-note">TLNT.AE Resume Formatter · файлы не покидают компьютер · PDF · DOCX · TXT · PNG · JPG</div>
+</div>
 
-  <div class="footer-note">
-    TLNT.AE Resume Formatter · файлы не покидают ваш компьютер ·
-    форматы: PDF, DOCX, TXT, PNG, JPG
+<!-- Share modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Ссылка на резюме</h3>
+    <p class="muted" id="modalDesc">Ссылка содержит всё резюме целиком — открывается в любом браузере, сервер не нужен.</p>
+    <div class="linkbox"><input id="shareLink" readonly><button class="btn-primary" id="copyLink" style="padding:11px 16px">Копировать</button></div>
+    <div class="row" style="justify-content:space-between">
+      <a id="openLink" class="btn-ghost" target="_blank" rel="noopener">Открыть ссылку ↗</a>
+      <button class="btn-mini" id="modalClose">Закрыть</button>
+    </div>
   </div>
 </div>
 
-<!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<script src="app.js"></script>
 <script>
-/* ============================ config ============================ */
-if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+const $=s=>document.querySelector(s);
+const status=m=>{ $("#status").textContent=m||""; };
+const cb=(m,p)=>{ status(m); const b=$("#bar"); b.classList.toggle("show",!!m); if(p!=null)$("#bar i").style.width=Math.round(p*100)+"%"; };
+let photoData="", logoData="", lastFiles=[];
 
-const FONTS = {
-  reg:  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/roboto@0.2.3/Roboto_400Regular.ttf",
-  med:  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/roboto@0.2.3/Roboto_500Medium.ttf",
-  bold: "https://cdn.jsdelivr.net/npm/@expo-google-fonts/roboto@0.2.3/Roboto_700Bold.ttf",
-};
-let fontCache = null;        // {reg, med, bold} base64
-let logoDataUrl = null;      // optional custom logo
-
-/* sources / watermarks to strip */
-const SOURCE_WORDS = [
- "linkedin","indeed","glassdoor","monster","ziprecruiter","careerbuilder","simplyhired",
- "snagajob","flexjobs","dice.com","cv-library","totaljobs","reed.co.uk","seek.com",
- "hh.ru","headhunter","superjob","rabota.ru","zarplata","habr career","geekjobs",
- "avito","work.ua","rabota.ua","jooble","talent.com","adzuna","neuvoo","jobs.ge",
- "naukri","bayt.com","gulftalent","laimoon","dubizzle","jobstreet","glints","foundit","shine.com","timesjobs",
- "contactout","rocketreach","lusha","apollo.io","signalhire","hunter.io","kaspr","cognism",
- "upwork","fiverr","freelancer.com","angellist","wellfound","xing.com",
- "resume.io","resume-now","novoresume","zety","enhancv","myperfectresume","kickresume","flowcv","visualcv",
- "indeed.com","glassdoor.com","monster.com"
-];
-const WATERMARK_LINE = [
- /powered\s+by/i,/generated\s+(by|on|with)/i,/created\s+(with|on|using)/i,/made\s+with/i,
- /built\s+with/i,/downloaded\s+(from|on)/i,/exported\s+from/i,/imported\s+from/i,
- /\bsource\s*[:\-]/i,/profile\s+url/i,/(public|view)\s+profile/i,
- /page\s+\d+\s+of\s+\d+/i,/^\s*\d+\s*\/\s*\d+\s*$/,
- /this\s+(resume|cv)\s+was/i,/сформировано|скачано\s+с|резюме\s+с\s+сайта|источник\s*:/i,
- /сгенерировано|создано\s+(в|с\s+помощью)/i,
- /\bconnections?\b/i,/\bfollowers?\b/i,/\d+\+?\s*(connections|подписчиков|контакт)/i,
-];
-
-/* section header dictionary -> normalized label */
-const HEAD_MAP = [
- [/^(summary|profile|about( me)?|objective|overview|professional summary)(?![a-zа-яё])/i,"Summary"],
- [/^(о себе|обо мне|профиль|краткая информация|цель|резюме)(?![a-zа-яё])/i,"О себе"],
- [/^(experience|work experience|employment( history)?|work history|professional experience|career)(?![a-zа-яё])/i,"Experience"],
- [/^(опыт( работы)?|места работы|карьера|трудовой опыт)(?![a-zа-яё])/i,"Опыт работы"],
- [/^(education|academic background|qualifications)(?![a-zа-яё])/i,"Education"],
- [/^(образование|учеба|обучение)(?![a-zа-яё])/i,"Образование"],
- [/^(skills|technical skills|core skills|hard skills|soft skills|key skills|competenc(e|ies))(?![a-zа-яё])/i,"Skills"],
- [/^(навыки|ключевые навыки|компетенции|технические навыки)(?![a-zа-яё])/i,"Навыки"],
- [/^(projects?|portfolio)(?![a-zа-яё])/i,"Projects"],
- [/^(проекты)(?![a-zа-яё])/i,"Проекты"],
- [/^(certification?s?|certificates?|courses?|training)(?![a-zа-яё])/i,"Certifications"],
- [/^(сертификаты|курсы|повышение квалификации)(?![a-zа-яё])/i,"Сертификаты"],
- [/^(languages?)(?![a-zа-яё])/i,"Languages"],
- [/^(языки)(?![a-zа-яё])/i,"Языки"],
- [/^(achievements?|awards?|honors?)(?![a-zа-яё])/i,"Achievements"],
- [/^(достижения|награды)(?![a-zа-яё])/i,"Достижения"],
- [/^(interests?|hobbies)(?![a-zа-яё])/i,"Interests"],
- [/^(интересы|хобби|увлечения)(?![a-zа-яё])/i,"Интересы"],
- [/^(publications?)(?![a-zа-яё])/i,"Publications"],
- [/^(references?)(?![a-zа-яё])/i,"References"],
- [/^(рекомендации)(?![a-zа-яё])/i,"Рекомендации"],
- [/^(volunteer(ing)?)(?![a-zа-яё])/i,"Volunteering"],
- [/^(контакты|контактная информация)(?![a-zа-яё])/i,"__CONTACTS__"],
- [/^(contacts?|contact (information|details))(?![a-zа-яё])/i,"__CONTACTS__"],
-];
-
-const EMAIL_RE = /[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i;
-const PHONE_RE = /(\+?\d[\d\s().\-]{7,}\d)/;
-const URL_RE   = /\b((https?:\/\/)?(www\.)?[a-z0-9\-]+\.[a-z]{2,}(\/[^\s]*)?)\b/i;
-
-/* ============================ helpers ============================ */
-const $ = s => document.querySelector(s);
-const status = (m)=>{ $("#status").textContent = m || ""; };
-function showBar(v){ const b=$("#bar"); b.classList.toggle("show",v!==false); }
-function setBar(p){ $("#bar i").style.width = Math.round(p*100)+"%"; }
-
-async function fetchBase64(url){
-  const buf = await (await fetch(url)).arrayBuffer();
-  let bin=""; const bytes=new Uint8Array(buf), chunk=0x8000;
-  for(let i=0;i<bytes.length;i+=chunk) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk));
-  return btoa(bin);
+/* ---- downscale a dataURL (for compact share links) ---- */
+function shrinkDataUrl(dataUrl, maxW, q){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{ const s=img.width>maxW?maxW/img.width:1; const c=document.createElement("canvas");
+      c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height); res(c.toDataURL("image/jpeg",q||0.72)); };
+    img.onerror=()=>res(dataUrl); img.src=dataUrl;
+  });
 }
-async function ensureFonts(){
-  if(fontCache) return fontCache;
-  status("Загружаю шрифт (кириллица)…"); showBar(); setBar(.1);
-  const [reg,med,bold]=await Promise.all([fetchBase64(FONTS.reg),fetchBase64(FONTS.med),fetchBase64(FONTS.bold)]);
-  setBar(1); fontCache={reg,med,bold}; showBar(false); status("");
-  return fontCache;
-}
+function setPhoto(d){ photoData=d||""; const t=$("#photoThumb");
+  if(d){ t.src=d; t.style.display="block"; $("#photoRemove").style.display="inline-block"; }
+  else { t.style.display="none"; $("#photoRemove").style.display="none"; }
+  updatePreview(); }
+function setLogo(d,name){ logoData=d||""; $("#logoReset").style.display=d?"inline-block":"none";
+  $("#logoName").textContent=name||""; updatePreview(); }
 
-/* ============================ extraction ============================ */
-async function extractFile(file){
-  const name=file.name.toLowerCase();
-  if(name.endsWith(".txt")||file.type==="text/plain") return await file.text();
-  if(name.endsWith(".pdf")||file.type==="application/pdf") return await extractPdf(file);
-  if(name.endsWith(".docx")) return await extractDocx(file);
-  if(name.endsWith(".doc")) throw new Error("Старый формат .doc не поддерживается — пересохраните как .docx или PDF.");
-  if(file.type.startsWith("image/")||/\.(png|jpe?g|webp|bmp)$/.test(name)) return await extractImage(file);
-  // try as text fallback
-  return await file.text();
-}
-async function extractPdf(file){
-  const data=new Uint8Array(await file.arrayBuffer());
-  const pdf=await pdfjsLib.getDocument({data}).promise;
-  let out=[];
-  for(let p=1;p<=pdf.numPages;p++){
-    status(`Читаю PDF — страница ${p}/${pdf.numPages}…`);
-    const page=await pdf.getPage(p);
-    const tc=await page.getTextContent();
-    const lines={};
-    tc.items.forEach(it=>{
-      if(!it.str) return;
-      const y=Math.round(it.transform[5]);
-      (lines[y]=lines[y]||[]).push({x:it.transform[4],s:it.str});
-    });
-    const ys=Object.keys(lines).map(Number).sort((a,b)=>b-a);
-    ys.forEach(y=>{
-      const ln=lines[y].sort((a,b)=>a.x-b.x).map(o=>o.s).join(" ").replace(/\s+/g," ").trim();
-      if(ln) out.push(ln);
-    });
-    out.push("");
-  }
-  return out.join("\n");
-}
-async function extractDocx(file){
-  const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});
-  return r.value;
-}
-async function extractImage(file){
-  const lang=$("#ocrLang").value;
-  status("Распознаю текст с изображения (OCR)… это может занять немного времени");
-  showBar(); setBar(.05);
-  const worker=await Tesseract.createWorker(lang,1,{logger:m=>{
-    if(m.status==="recognizing text") setBar(.1+m.progress*.9);
-  }});
-  const {data}=await worker.recognize(file);
-  await worker.terminate();
-  showBar(false);
-  return data.text;
-}
-
-/* ============================ cleaning ============================ */
-function cleanText(text){
-  const on=$("#cleanToggle").checked;
-  let lines=text.replace(/\r/g,"").split("\n");
-  const out=[];
-  for(let raw of lines){
-    let ln=raw.replace(/ /g," ").replace(/[ \t]+/g," ").trimEnd();
-    if(on){
-      const low=ln.toLowerCase();
-      // drop whole line if it is essentially a source watermark
-      const hitSource = SOURCE_WORDS.some(w=>low.includes(w));
-      const hitMark = WATERMARK_LINE.some(re=>re.test(ln));
-      if(hitMark){ continue; }
-      if(hitSource){
-        // a short line that is basically a profile/source URL -> drop entirely
-        if(/(https?:\/\/|www\.|\.(com|ru|io|net|co|me|org|ae|in|ua|ge)\b)/i.test(low) && ln.trim().split(/\s+/).length<=3){ continue; }
-        // otherwise strip the source token + any broken url / provenance tail it leaves behind
-        let stripped=ln;
-        SOURCE_WORDS.forEach(w=>{
-          stripped=stripped.replace(new RegExp("\\b"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","ig"),"");
-        });
-        stripped=stripped
-          .replace(/\b(sourced\s+(via|from|on)|found\s+(via|on)|via|from|source)\b\s*[.:,]?\s*$/i,"")
-          .replace(/(https?:\/\/|www\.)\S*/gi,"")
-          .replace(/\s+\./g,".")
-          .replace(/\s*[•|·\-–—,;:]\s*$/,"")
-          .replace(/^\s*[•|·\-–—,;:]\s*/,"")
-          .replace(/\s{2,}/g," ").trim();
-        if(stripped.replace(/[^a-zа-яё0-9]/ig,"").length<3) continue;  // was just branding
-        ln=stripped;
-      }
-    }
-    out.push(ln);
-  }
-  // collapse 3+ blank lines to 1
-  return out.join("\n").replace(/\n{3,}/g,"\n\n").trim();
-}
-
-/* ============================ parsing ============================ */
-function isHeader(line){
-  const t=line.trim();
-  if(!t||t.length>42) return null;
-  if(t.split(/\s+/).length>6) return null;
-  for(const [re,label] of HEAD_MAP){ if(re.test(t)) return label; }
-  return null;
-}
-function isContactLine(tt){
-  if(!tt) return false;
-  if(EMAIL_RE.test(tt) && tt.length<70) return true;
-  if(/^[+(]?\d[\d\s().\-]{7,}\d$/.test(tt)) return true;                 // line is just a phone
-  if(/^((https?:\/\/)?(www\.)?[a-z0-9.\-]+\.[a-z]{2,}(\/\S*)?)$/i.test(tt) && !/\s/.test(tt)) return true; // bare url/handle
-  return false;
-}
-function isLocationLine(tt){
-  if(tt.length>=55 || /\d{4}/.test(tt) || EMAIL_RE.test(tt)) return false;  // \b is unreliable for Cyrillic, use substring match
-  return /(dubai|abu dhabi|sharjah|ajman|uae|united arab emirates|qatar|doha|riyadh|jeddah|kuwait|москва|moscow|санкт|петербург|россия|russia|казахстан|алматы|астана|astana|almaty)/i.test(tt);
-}
-function looksLikeName(line){
-  const t=line.trim();
-  if(!t||t.length>48) return false;
-  if(/\d|@|http|www\.|\+?\d{5}/.test(t)) return false;
-  if(/^(resume|cv|curriculum vitae|резюме)\s*$/i.test(t)) return false;
-  if(isHeader(t)) return false;
-  const words=t.split(/\s+/);
-  if(words.length<1||words.length>4) return false;
-  const letters=t.replace(/[^a-zа-яё]/ig,"").length;
-  return letters>=t.replace(/\s/g,"").length*0.7;
-}
-
-function parseResume(text){
-  const lines=text.split("\n");
-  const res={name:"",head:"",email:"",phone:"",loc:"",link:"",sections:[]};
-
-  // contacts from whole text
-  const em=text.match(EMAIL_RE); if(em) res.email=em[0];
-  const ph=text.match(PHONE_RE); if(ph) res.phone=ph[0].trim();
-  const linkLine=lines.find(l=>/(github\.com|behance\.net|dribbble\.com|gitlab\.com|portfolio|t\.me|telegram|medium\.com|stackoverflow\.com|linkedin\.com)/i.test(l));
-  if(linkLine){ const m=linkLine.match(URL_RE); if(m) res.link=m[0]; }
-
-  // name + headline from the first non-empty lines
-  let i=0;
-  while(i<lines.length && !lines[i].trim()) i++;
-  // skip a leading "RESUME/CV" title
-  if(i<lines.length && /^(resume|cv|curriculum vitae|резюме)\s*$/i.test(lines[i].trim())) i++;
-  while(i<lines.length && !lines[i].trim()) i++;
-  // find name within next few lines
-  for(let k=i;k<Math.min(i+5,lines.length);k++){
-    if(looksLikeName(lines[k])){ res.name=lines[k].trim(); i=k+1; break; }
-  }
-  if(!res.name){ // fallback: first non-empty non-contact line
-    for(let k=0;k<Math.min(6,lines.length);k++){
-      const t=lines[k].trim();
-      if(t && !EMAIL_RE.test(t) && !isHeader(t)){ res.name=t; i=k+1; break; }
-    }
-  }
-  // headline: next short line that's not a contact/header
-  for(let k=i;k<Math.min(i+4,lines.length);k++){
-    const t=(lines[k]||"").trim();
-    if(!t) continue;
-    if(EMAIL_RE.test(t)||PHONE_RE.test(t)||isHeader(t)) break;
-    if(t.length<=70 && !/[•|]/.test(t)){ res.head=t; i=k+1; }
-    break;
-  }
-
-  // location guess
-  const locLine=lines.find(l=>isLocationLine(l.trim()) && !/[•|]/.test(l));
-  if(locLine){ res.loc = locLine.replace(/^[•\-\s|]+/,"").replace(/\s{2,}/g," ").trim(); if(res.loc.length>48) res.loc=""; }
-
-  // sections
-  let cur={title:"",body:[]};
-  const flush=()=>{ if(cur.title||cur.body.join("").trim()){ res.sections.push({title:cur.title,body:cur.body.join("\n").trim()}); } };
-  let started=false;
-  for(let k=i;k<lines.length;k++){
-    const t=lines[k];
-    const h=isHeader(t);
-    if(h){
-      if(h==="__CONTACTS__"){ // absorb contacts, don't make a visible section
-        for(let j=k+1;j<lines.length;j++){
-          const c=lines[j]; if(isHeader(c)) break;
-          if(!res.email){const e=c.match(EMAIL_RE);if(e)res.email=e[0];}
-          if(!res.phone){const p=c.match(PHONE_RE);if(p)res.phone=p[0].trim();}
-        }
-        continue;
-      }
-      if(started) flush();
-      cur={title:h,body:[]}; started=true;
-    } else {
-      const tt=t.trim();
-      // drop contact/source lines so they don't pollute the first section
-      if(isContactLine(tt)) continue;
-      if(!started && (tt==="" || isLocationLine(tt))) continue;  // no implicit section from blanks/location
-      if(!started){ cur.title=res.name?(/[а-яё]/i.test(res.name)?"О себе":"Summary"):"Summary"; }
-      cur.body.push(t);
-      started=true;
-    }
-  }
-  flush();
-  // trim empty sections, dedupe contact-only lines out of first section body
-  res.sections=res.sections
-    .map(s=>({title:s.title,body:s.body.replace(/\n{3,}/g,"\n\n").trim()}))
-    .filter(s=>s.body.length>0);
-  return res;
-}
-
-/* ============================ editor ============================ */
+/* ---- editor ---- */
 function renderEditor(d){
-  $("#editorHint").style.display="none";
-  $("#editorBody").style.display="block";
-  $("#fName").value=d.name||"";
-  $("#fHead").value=d.head||"";
-  $("#fEmail").value=d.email||"";
-  $("#fPhone").value=d.phone||"";
-  $("#fLoc").value=d.loc||"";
-  $("#fLink").value=d.link||"";
+  $("#editorHint").style.display="none"; $("#editorBody").style.display="block";
+  $("#fName").value=d.name||""; $("#fHead").value=d.head||"";
+  $("#fEmail").value=d.email||""; $("#fPhone").value=d.phone||"";
+  $("#fLoc").value=d.loc||""; $("#fLink").value=d.link||""; $("#fPersonal").value=d.personal||"";
+  setPhoto(d.photo||"");
   const wrap=$("#sections"); wrap.innerHTML="";
-  (d.sections.length?d.sections:[{title:"Summary",body:""}]).forEach(s=>addSection(s.title,s.body));
-  bindLive();
-  updatePreview();
-  $("#downloadBtn").disabled=false;
+  (d.sections&&d.sections.length?d.sections:[{title:"Профиль",body:""}]).forEach(s=>addSection(s.title,s.body));
+  ["#fName","#fHead","#fEmail","#fPhone","#fLoc","#fLink","#fPersonal"].forEach(s=>$(s).addEventListener("input",updatePreview));
+  updatePreview(); $("#downloadBtn").disabled=false; $("#saveBtn").disabled=false;
 }
-function addSection(title="",body=""){
-  const el=document.createElement("div");
-  el.className="sec";
-  el.innerHTML=`<div class="sec-head">
-      <span class="handle">⋮⋮</span>
-      <input class="sTitle" value="${(title||"").replace(/"/g,'&quot;')}" placeholder="НАЗВАНИЕ РАЗДЕЛА">
-      <button class="btn-mini up">↑</button><button class="btn-mini down">↓</button>
-      <button class="btn-mini del">✕</button>
-    </div>
-    <textarea class="sBody" placeholder="Содержание раздела…">${(body||"").replace(/</g,"&lt;")}</textarea>`;
+function addSection(title,body){
+  const el=document.createElement("div"); el.className="sec";
+  el.innerHTML=`<div class="sec-head"><span class="handle">⋮⋮</span>
+    <input class="sTitle" value="${(title||"").replace(/"/g,'&quot;')}" placeholder="НАЗВАНИЕ РАЗДЕЛА">
+    <button class="btn-mini up">↑</button><button class="btn-mini down">↓</button><button class="btn-mini del">✕</button></div>
+    <textarea class="sBody" placeholder="Содержание…">${(body||"").replace(/</g,"&lt;")}</textarea>`;
   $("#sections").appendChild(el);
   el.querySelector(".del").onclick=()=>{el.remove();updatePreview();};
   el.querySelector(".up").onclick=()=>{const p=el.previousElementSibling;if(p)el.parentNode.insertBefore(el,p);updatePreview();};
   el.querySelector(".down").onclick=()=>{const n=el.nextElementSibling;if(n)el.parentNode.insertBefore(n,el);updatePreview();};
   el.querySelectorAll("input,textarea").forEach(i=>i.addEventListener("input",updatePreview));
 }
-function bindLive(){
-  ["#fName","#fHead","#fEmail","#fPhone","#fLoc","#fLink"].forEach(s=>$(s).addEventListener("input",updatePreview));
-}
 function collect(){
   const secs=[...document.querySelectorAll("#sections .sec")].map(el=>({
     title:el.querySelector(".sTitle").value.trim(),
     body:el.querySelector(".sBody").value.replace(/\s+$/,"")
   })).filter(s=>s.title||s.body.trim());
-  return {
-    name:$("#fName").value.trim(),
-    head:$("#fHead").value.trim(),
-    email:$("#fEmail").value.trim(),
-    phone:$("#fPhone").value.trim(),
-    loc:$("#fLoc").value.trim(),
-    link:$("#fLink").value.trim(),
-    sections:secs
-  };
+  return { name:$("#fName").value.trim(), head:$("#fHead").value.trim(),
+    email:$("#fEmail").value.trim(), phone:$("#fPhone").value.trim(),
+    loc:$("#fLoc").value.trim(), link:$("#fLink").value.trim(),
+    personal:$("#fPersonal").value.replace(/\s+$/,""), photo:photoData, logo:logoData, sections:secs };
 }
+function updatePreview(){ TLNT.renderPreview($("#page"), collect()); }
 
-/* ============================ preview (HTML mirror of PDF) ============================ */
-function bulletize(body){
-  return body.split("\n").map(l=>{
-    const t=l.trim();
-    if(/^[-•*–▪‣·]\s+/.test(t)) return `<div class="li">${escapeHtml(t.replace(/^[-•*–▪‣·]\s+/,""))}</div>`;
-    if(!t) return `<div style="height:.5em"></div>`;
-    return `<div>${escapeHtml(t)}</div>`;
-  }).join("");
-}
-function escapeHtml(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function updatePreview(){
-  const d=collect();
-  const contacts=[d.email,d.phone,d.loc,d.link].filter(Boolean);
-  const logoHtml = logoDataUrl
-    ? `<img class="p-logo-img" src="${logoDataUrl}">`
-    : `<div class="p-logo">TLNT<span class="dot">.</span>AE</div>`;
-  const html=`
-    <div class="p-mast">
-      ${logoHtml}
-      <div class="p-tag">Talent Agency<br>United Arab Emirates</div>
-    </div>
-    <div class="p-name">${escapeHtml(d.name||"Имя Фамилия")}</div>
-    ${d.head?`<div class="p-head">${escapeHtml(d.head)}</div>`:""}
-    ${contacts.length?`<div class="p-contacts">${contacts.map(escapeHtml).join('<span>·</span>')}</div>`:""}
-    ${d.sections.map(s=>`
-      <div class="p-sec">
-        ${s.title?`<h3>${escapeHtml(s.title)}</h3>`:""}
-        <div class="body">${bulletize(s.body)}</div>
-      </div>`).join("")}
-    <div class="p-foot"><span>Prepared by TLNT.AE · Talent Agency, UAE</span><span>tlnt.ae</span></div>
-  `;
-  $("#page").innerHTML=html;
-}
-
-/* ============================ PDF build ============================ */
-async function buildPdf(){
-  const d=collect();
-  if(!d.name && !d.sections.length){ status("Нет данных для PDF."); return; }
-  status("Готовлю PDF…"); showBar(); setBar(.2);
-  const f=await ensureFonts();
-  const { jsPDF }=window.jspdf;
-  const doc=new jsPDF({unit:"pt",format:"a4"});
-  doc.addFileToVFS("R-r.ttf",f.reg);  doc.addFont("R-r.ttf","Roboto","normal");
-  doc.addFileToVFS("R-m.ttf",f.med);  doc.addFont("R-m.ttf","Roboto","medium");
-  doc.addFileToVFS("R-b.ttf",f.bold); doc.addFont("R-b.ttf","Roboto","bold");
-
-  const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
-  const M=56, CW=W-M*2, BOTTOM=H-58;
-  const GRAPH=[46,42,38], INK=[58,53,47], MUT=[122,112,101], BEI=[176,141,87], BEID=[154,120,66], LINE=[231,222,207];
-  let y=0, page=1;
-
-  function setC(c){doc.setTextColor(c[0],c[1],c[2]);}
-  function masthead(first){
-    if(logoDataUrl && logoImg){
-      const ih=26, iw=ih*(logoImg.width/logoImg.height||3);
-      try{ doc.addImage(logoDataUrl,"PNG",M,first?40:30,Math.min(iw,160),ih); }catch(e){}
-    }else{
-      doc.setFont("Roboto","bold"); doc.setFontSize(first?20:13); setC(GRAPH);
-      doc.text("TLNT", M, first?58:42, {charSpace:1.2});
-      const tw=doc.getTextWidth("TLNT");
-      setC(BEI); doc.text(".", M+tw+2, first?58:42);
-      const dw=doc.getTextWidth(".");
-      setC(GRAPH); doc.text("AE", M+tw+dw+3, first?58:42,{charSpace:1.2});
-    }
-    doc.setFont("Roboto","normal"); doc.setFontSize(first?8:7); setC(BEID);
-    doc.text("TALENT AGENCY · UAE", W-M, first?50:40, {align:"right",charSpace:1.6});
-    const ly=first?70:50;
-    doc.setDrawColor(BEI[0],BEI[1],BEI[2]); doc.setLineWidth(1.2); doc.line(M,ly,W-M,ly);
-    return ly+ (first?26:20);
-  }
-  function footer(){
-    doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(.7); doc.line(M,H-46,W-M,H-46);
-    doc.setFont("Roboto","normal"); doc.setFontSize(8); setC(MUT);
-    doc.text("Prepared by TLNT.AE · Talent Agency, UAE", M, H-32);
-    doc.text("tlnt.ae", W-M, H-32, {align:"right"});
-  }
-  function newPage(){ footer(); doc.addPage(); page++; y=masthead(false); }
-  function need(h){ if(y+h>BOTTOM){ newPage(); } }
-
-  y=masthead(true);
-
-  // name
-  doc.setFont("Roboto","bold"); doc.setFontSize(23); setC(GRAPH);
-  const nameLines=doc.splitTextToSize(d.name||"—", CW);
-  nameLines.forEach(l=>{ need(28); doc.text(l,M,y+18); y+=27; });
-  y+=2;
-  // headline
-  if(d.head){
-    doc.setFont("Roboto","normal"); doc.setFontSize(11.5); setC(MUT);
-    doc.splitTextToSize(d.head,CW).forEach(l=>{ need(16); doc.text(l,M,y+10); y+=15; });
-  }
-  // contacts
-  const contacts=[d.email,d.phone,d.loc,d.link].filter(Boolean);
-  if(contacts.length){
-    y+=6; need(14);
-    doc.setFontSize(9.5);
-    let x=M;
-    contacts.forEach((c,idx)=>{
-      const txt=c, tw=doc.getTextWidth(txt);
-      if(x+tw>W-M){ y+=14; x=M; need(14); }
-      doc.setFont("Roboto","normal"); setC(INK); doc.text(txt,x,y+8); x+=tw;
-      if(idx<contacts.length-1){ setC(BEI); doc.text("  ·  ",x,y+8); x+=doc.getTextWidth("  ·  "); }
-    });
-    y+=16;
-  }
-  // divider
-  y+=4; doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(.8); need(6); doc.line(M,y,W-M,y); y+=18;
-
-  // sections
-  d.sections.forEach(s=>{
-    if(s.title){
-      need(30);
-      doc.setFont("Roboto","bold"); doc.setFontSize(10); setC(BEID);
-      const title=s.title.toUpperCase();
-      doc.text(title,M,y+9,{charSpace:1.4});
-      const tw=doc.getTextWidth(title)+title.length*1.4;
-      doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(.7);
-      doc.line(M+tw+12,y+6,W-M,y+6);
-      y+=22;
-    }
-    doc.setFont("Roboto","normal"); doc.setFontSize(10); setC(INK);
-    s.body.split("\n").forEach(raw=>{
-      const t=raw.replace(/\s+$/,"");
-      if(!t.trim()){ y+=6; return; }
-      const bullet=/^[-•*–▪‣·]\s+/.test(t.trim());
-      const indent=bullet?16:0;
-      const txt=bullet?t.trim().replace(/^[-•*–▪‣·]\s+/,""):t;
-      const wrapped=doc.splitTextToSize(txt,CW-indent);
-      wrapped.forEach((l,li)=>{
-        need(14);
-        if(bullet && li===0){ setC(BEI); doc.text("•",M,y+9); setC(INK); }
-        doc.text(l,M+indent,y+9);
-        y+=14;
-      });
-      if(bullet) y+=1;
-    });
-    y+=12;
-  });
-
-  footer();
-  const fname=(d.name||"resume").replace(/[^\wЀ-ӿ\- ]/g,"").trim().replace(/\s+/g,"_")||"resume";
-  doc.save(`TLNT_${fname}.pdf`);
-  showBar(false); status("Готово ✓ PDF сохранён.");
-}
-
-/* preload logo image element for sizing */
-let logoImg=null;
-function setLogo(dataUrl){
-  logoDataUrl=dataUrl;
-  if(dataUrl){ logoImg=new Image(); logoImg.src=dataUrl; $("#logoReset").style.display="inline-block"; }
-  else { logoImg=null; $("#logoReset").style.display="none"; $("#logoName").textContent=""; }
-  updatePreview();
-}
-
-/* ============================ pipeline ============================ */
-let lastFiles=[];
+/* ---- pipeline ---- */
 async function handleFiles(files){
-  files=[...files].filter(Boolean);
-  if(!files.length) return;
-  lastFiles=files;
+  files=[...files].filter(Boolean); if(!files.length) return; lastFiles=files;
   $("#fileChips").innerHTML=files.map(f=>`<span class="chip">📄 <b>${f.name}</b></span>`).join("");
   try{
-    showBar(); setBar(.05);
-    let all=[];
-    for(const f of files){ all.push(await extractFile(f)); }
-    let text=all.join("\n\n");
-    text=cleanText(text);
-    if(!text.trim()){ status("Не удалось извлечь текст. Если это фото — попробуйте другой язык OCR или более чёткое изображение."); showBar(false); return; }
-    const parsed=parseResume(text);
+    cb("Обрабатываю…",0.05);
+    let all=[], photo="";
+    for(const f of files){
+      const r=await TLNT.extractFile(f,{lang:$("#ocrLang").value,cb});
+      all.push(r.text||""); if(!photo && r.photo) photo=r.photo;
+    }
+    let text=TLNT.cleanText(all.join("\n\n"), $("#cleanToggle").checked);
+    if(!text.trim() && !photo){ cb(""); status("Не удалось извлечь текст. Для фото попробуйте другой язык OCR/чёткое изображение."); return; }
+    const parsed=TLNT.parseResume(text); parsed.photo=photo;
     renderEditor(parsed);
-    status(`Распознано ✓ Проверьте поля и нажмите «Скачать PDF».`);
-    showBar(false);
+    cb(""); status("Распознано ✓ Проверьте поля, сохраните или скачайте PDF.");
     $("#multiNote").textContent = files.length>1 ? `Объединено файлов: ${files.length}` : "";
-  }catch(e){ console.error(e); status("Ошибка: "+e.message); showBar(false); }
+  }catch(e){ console.error(e); cb(""); status("Ошибка: "+e.message); }
 }
 
-/* ============================ wiring ============================ */
+/* ---- library (localStorage) ---- */
+const LIB_KEY="tlnt_lib_v1";
+function libLoad(){ try{ return JSON.parse(localStorage.getItem(LIB_KEY)||"[]"); }catch(e){ return []; } }
+function libSave(arr){ localStorage.setItem(LIB_KEY, JSON.stringify(arr)); }
+function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString("ru-RU")+" "+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}); }
+function shareUrl(payload){ return location.origin+location.pathname.replace(/index\.html$/,"")+"view.html#"+payload; }
+function renderLib(){
+  const arr=libLoad().sort((a,b)=>b.ts-a.ts); const box=$("#libList");
+  if(!arr.length){ box.innerHTML='<div class="lib-empty">Пока пусто. Нажмите «Сохранить + ссылка».</div>'; return; }
+  box.innerHTML=arr.map(it=>`<div class="lib-item" data-id="${it.id}">
+      <img src="${it.thumb||''}" onerror="this.style.visibility='hidden'">
+      <div class="meta"><b>${(it.name||'Без имени').replace(/</g,'&lt;')}</b><small>${(it.role||'').replace(/</g,'&lt;')} · ${fmtDate(it.ts)}</small></div>
+      <button class="btn-mini act-link">🔗</button><button class="btn-mini act-load">Открыть</button><button class="btn-mini act-del">✕</button>
+    </div>`).join("");
+  box.querySelectorAll(".lib-item").forEach(row=>{
+    const id=row.dataset.id; const it=libLoad().find(x=>x.id===id);
+    row.querySelector(".act-link").onclick=()=>showShare(shareUrl(it.payload), it.name);
+    row.querySelector(".act-load").onclick=()=>{ const d=TLNT.decodePayload(it.payload); if(d){ logoData=d.logo||""; setLogo(logoData, logoData?"свой логотип":""); renderEditor(d); window.scrollTo({top:0,behavior:"smooth"}); } };
+    row.querySelector(".act-del").onclick=()=>{ if(confirm("Удалить из базы?")){ libSave(libLoad().filter(x=>x.id!==id)); renderLib(); } };
+  });
+}
+async function saveToLib(){
+  const d=collect();
+  if(!d.name && !d.sections.length){ status("Нечего сохранять."); return; }
+  cb("Готовлю ссылку…",0.4);
+  const data=JSON.parse(JSON.stringify(d));
+  if(data.photo) data.photo=await shrinkDataUrl(data.photo,210,0.7);   // keep links compact
+  const payload=TLNT.encodePayload(data);
+  const thumb=data.photo||"";
+  const id="r"+Date.now().toString(36)+Math.floor(performance.now()).toString(36);
+  const arr=libLoad(); arr.push({id, name:d.name, role:d.head, ts:Date.now(), payload, thumb});
+  libSave(arr); renderLib(); cb("");
+  showShare(shareUrl(payload), d.name);
+}
+function showShare(url,name){
+  $("#shareLink").value=url; $("#openLink").href=url; $("#modalTitle").textContent="Ссылка: "+(name||"резюме");
+  $("#modalBg").classList.add("show");
+  if(url.length>6000) $("#modalDesc").textContent="Ссылка длинная (с фото). Открывается в любом браузере; для очень длинных лучше отправлять через мессенджер, а не вставлять в адресную строку вручную.";
+  else $("#modalDesc").textContent="Ссылка содержит всё резюме целиком — открывается в любом браузере, сервер не нужен.";
+}
+
+/* ---- wiring ---- */
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-  t.classList.add("active");
-  const m=t.dataset.mode;
-  $("#fileMode").style.display=m==="file"?"block":"none";
-  $("#textMode").style.display=m==="text"?"block":"none";
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
+  $("#fileMode").style.display=t.dataset.mode==="file"?"block":"none";
+  $("#textMode").style.display=t.dataset.mode==="text"?"block":"none";
 });
 $("#fileInput").addEventListener("change",e=>handleFiles(e.target.files));
 const drop=$("#drop");
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
 drop.addEventListener("drop",e=>handleFiles(e.dataTransfer.files));
-$("#parsePaste").onclick=()=>{
-  let text=$("#pasteArea").value;
-  if(!text.trim()){status("Вставьте текст.");return;}
-  text=cleanText(text);
-  renderEditor(parseResume(text));
-  status("Разобрано ✓ Проверьте поля.");
-};
+$("#parsePaste").onclick=()=>{ let t=$("#pasteArea").value; if(!t.trim()){status("Вставьте текст.");return;}
+  const p=TLNT.parseResume(TLNT.cleanText(t,$("#cleanToggle").checked)); renderEditor(p); status("Разобрано ✓"); };
 $("#cleanToggle").addEventListener("change",()=>{ if(lastFiles.length) handleFiles(lastFiles); });
-$("#addSec").onclick=()=>{addSection("",""); };
-$("#downloadBtn").onclick=()=>buildPdf().catch(e=>{status("Ошибка PDF: "+e.message);showBar(false);});
-$("#logoInput").addEventListener("change",e=>{
-  const file=e.target.files[0]; if(!file)return;
-  const rd=new FileReader();
-  rd.onload=()=>{ setLogo(rd.result); $("#logoName").textContent=file.name; };
-  rd.readAsDataURL(file);
-});
-$("#logoReset").onclick=()=>setLogo(null);
+$("#addSec").onclick=()=>addSection("","");
+$("#downloadBtn").onclick=()=>{ status("Готовлю PDF…"); TLNT.downloadResumePdf(collect(),cb).then(()=>{cb("");status("Готово ✓ PDF сохранён.");}).catch(e=>{cb("");status("Ошибка PDF: "+e.message);}); };
+$("#saveBtn").onclick=()=>saveToLib().catch(e=>{cb("");status("Ошибка: "+e.message);});
+$("#photoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>setPhoto(r.result); r.readAsDataURL(f); });
+$("#photoRemove").onclick=()=>setPhoto("");
+$("#logoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>setLogo(r.result,f.name); r.readAsDataURL(f); });
+$("#logoReset").onclick=()=>setLogo("","");
+$("#copyLink").onclick=()=>{ const i=$("#shareLink"); i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="Скопировано ✓";setTimeout(()=>$("#copyLink").textContent="Копировать",1500);}).catch(()=>document.execCommand("copy")); };
+$("#modalClose").onclick=()=>$("#modalBg").classList.remove("show");
+$("#modalBg").onclick=e=>{ if(e.target===$("#modalBg")) $("#modalBg").classList.remove("show"); };
 
-/* warm up fonts in the background */
-ensureFonts().catch(()=>{});
+renderLib();
+TLNT.ensureFonts().catch(()=>{});
 </script>
 </body>
 </html>
