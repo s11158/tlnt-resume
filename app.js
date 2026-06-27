@@ -47,8 +47,12 @@ const HEAD_MAP = [
  [/^(опыт работы|места работы|трудовой опыт)(?![a-zа-яё])/i,"Опыт работы"],
  [/^(education|academic background|qualifications)(?![a-zа-яё])/i,"Education"],
  [/^(высшее образование|неоконченное высшее|среднее специальное|образование|обучение)(?![a-zа-яё])/i,"Образование"],
- [/^(skills|technical skills|core skills|hard skills|soft skills|key skills|competenc(e|ies))(?![a-zа-яё])/i,"Skills"],
- [/^(ключевые навыки|навыки|компетенции|технические навыки)(?![a-zа-яё])/i,"Навыки"],
+ [/^(skills|technical skills|core skills|hard skills|soft skills|key skills|competenc(e|ies)|top skills|core competenc(e|ies)|key competenc(e|ies)|areas? of expertise|technical expertise|professional skills|personal skills|additional skills)(?![a-zа-яё])/i,"Skills"],
+ [/^(ключевые навыки|навыки|компетенции|технические навыки|профессиональные навыки|основные навыки)(?![a-zа-яё])/i,"Навыки"],
+ [/^(research experience|teaching experience|relevant experience|leadership experience)(?![a-zа-яё])/i,"Experience"],
+ [/^(research interests?)(?![a-zа-яё])/i,"Research Interests"],
+ [/^(professional development)(?![a-zа-яё])/i,"Professional Development"],
+ [/^(personal information|personal details|contact information|contact details|personal data)(?![a-zа-яё])/i,"__PERSONAL__"],
  [/^(projects?|portfolio)(?![a-zа-яё])/i,"Projects"],
  [/^(проекты)(?![a-zа-яё])/i,"Проекты"],
  [/^(certification?s?|certificates?|courses?|training)(?![a-zа-яё])/i,"Certifications"],
@@ -68,9 +72,55 @@ const HEAD_MAP = [
 ];
 
 const EMAIL_RE = /[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i;
-const PHONE_RE = /(\+?\d[\d\s().\-]{7,}\d)/;
+const PHONE_RE = /(\+?\(?\d[\d\s().\-]{7,}\d)/;
 const URL_RE   = /\b((https?:\/\/)?(www\.)?[a-z0-9\-]+\.[a-z]{2,}(\/[^\s]*)?)\b/i;
-const PERSONAL_RE = /(мужчина|женщина|\d+\s+(год|года|лет)|родил|проживает|гражданств|разрешение на работу|готов(а)? к переезд|готов(а)? к командиров|не готов|тип занятости|формат работы|время в пути|желательное время|занятость|желаемая зарплата)/i;
+const PERSONAL_RE = /(мужчина|женщина|\d+\s+(год|года|лет)|родил|проживает|гражданств|разрешение на работу|готов(а)? к переезд|готов(а)? к командиров|не готов|тип занятости|формат работы|время в пути|желательное время|занятость|желаемая зарплата|date of birth|nationality|marital status)/i;
+
+const JOB_TITLE_RE = /\b(director|manager|engineer|developer|designer|analyst|consultant|specialist|officer|lead|head\s+of|chief|cxo|cto|cfo|ceo|coo|president|founder|co-?founder|nurse|accountant|architect|administrator|coordinator|executive|supervisor|technician|teacher|professor|scientist|marketer|recruiter|strategist|owner|partner|associate|intern|руководитель|директор|менеджер|инженер|разработчик|дизайнер|аналитик|специалист|бухгалтер|консультант|маркетолог|администратор|руководител)\b/i;
+
+/* ---- location detection (generic, not a fixed city list) ---- */
+const COUNTRY_RE=/(?<![\p{L}])(uae|united arab emirates|emirates|usa|u\.s\.a\.|united states|uk|united kingdom|england|scotland|ireland|canada|germany|deutschland|france|italy|italia|spain|españa|portugal|poland|polska|netherlands|belgium|sweden|norway|denmark|finland|switzerland|austria|greece|turkey|türkiye|egypt|saudi arabia|saudi|qatar|kuwait|bahrain|oman|jordan|lebanon|morocco|nigeria|kenya|ghana|south africa|japan|china|hong kong|singapore|malaysia|indonesia|thailand|vietnam|philippines|india|pakistan|bangladesh|australia|new zealand|brazil|brasil|argentina|chile|colombia|mexico|méxico|россия|russia|казахстан|kazakhstan|украина|ukraine|беларусь|belarus|узбекистан|армения|грузия|georgia|azerbaijan|азербайджан|оаэ|эмираты|катар|саудовская аравия|кувейт|бахрейн|оман|египет|турция|германия|франция|испания|италия|польша|нидерланды|швейцария|сербия)(?![\p{L}])/iu;
+const US_STATE_RE=/,\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/;
+const CITY_RE=/(?<![\p{L}])(dubai|abu dhabi|sharjah|ajman|doha|riyadh|jeddah|kuwait city|manama|muscat|дубай|абу[\s-]?даби|шарджа|аджман|доха|эр[\s-]?рияд|джидда|манама|маскат|london|manchester|new york|san francisco|los angeles|chicago|boston|seattle|austin|houston|dallas|miami|toronto|vancouver|berlin|munich|hamburg|paris|madrid|barcelona|rome|milan|amsterdam|brussels|zurich|geneva|vienna|warsaw|prague|stockholm|oslo|copenhagen|helsinki|istanbul|cairo|lagos|nairobi|cape town|johannesburg|tokyo|osaka|beijing|shanghai|hong kong|singapore|kuala lumpur|bangkok|jakarta|mumbai|delhi|bangalore|bengaluru|hyderabad|sydney|melbourne|sao paulo|são paulo|mexico city|москва|moscow|санкт\s*-?\s*петербург|петербург|st\.? petersburg|екатеринбург|новосибирск|казань|нижний новгород|самара|краснодар|алматы|астана|almaty|astana|tashkent|ташкент|baku|баку|tbilisi|тбилиси|минск|minsk|kyiv|kiev|киев)(?![\p{L}])/iu;
+const LOC_PREFIX_RE=/^\s*(location|address|based in|city|town|город(?:\s+проживания)?|адрес|местоположение|проживает|residence)\s*[:\-–]\s*/i;
+function looksLikeLocationChunk(s){
+  s=(s||"").trim();
+  if(!s||s.length>44||s.split(/\s+/).length>6) return false;
+  if(EMAIL_RE.test(s)||/[@]|https?:|www\.|\.com|\.ru|\d{4,}/i.test(s)) return false;   // no years/IDs
+  if(/гражданств|разрешение|nationality|date of birth|родил|university|универ|институт|college|школа|degree|ph\.?\s?d|phd|doctorate|diploma|b\.?sc|m\.?sc|mba|bachelor|master|факультет|кафедр/i.test(s)) return false;
+  if(LOC_PREFIX_RE.test(s)) return true;
+  if(US_STATE_RE.test(s)) return true;
+  if(COUNTRY_RE.test(s)) return true;
+  if(CITY_RE.test(s)) return true;
+  if(/\b(bay area|greater\s+\w+\s+area|metropolitan area|\w+\s+region)\b/i.test(s)) return true;
+  return false;
+}
+function tidyLoc(s){
+  return (s||"")
+    .replace(/([а-яёa-z])\s*-\s*([а-яёa-z])/gi,"$1-$2")     // "Санкт - Петербург" -> "Санкт-Петербург"
+    .replace(/\s{2,}/g," ").replace(/[.,;]+$/,"").trim();
+}
+function detectLocation(lines){
+  for(const raw of lines.slice(0,22)){
+    const line=raw.replace(/\s+([,.;:])/g,"$1").trim();
+    if(!line) continue;
+    const chunks=line.split(/\s*[|·•∙‧]\s*/);                // split combined contact lines
+    for(let ch of chunks){
+      ch=ch.trim();
+      const hadPrefix=LOC_PREFIX_RE.test(ch);
+      let cand=hadPrefix ? ch.replace(LOC_PREFIX_RE,"").trim() : ch;
+      if(hadPrefix){                                          // keep just the city/region, drop metro & extra clauses
+        cand=cand.split(/\s*,\s*/).filter(p=>p && !/^(м\.|метро|ст\.|station|метро)/i.test(p)).slice(0,2).join(", ");
+      }
+      cand=cand.replace(/\s*[,;]\s*(?=готов|не готов|можно|есть\s|гражданств|разрешение)/i," ").replace(/^[•\-\s|]+/,"").trim();
+      cand=tidyLoc(cand);
+      const ok = cand && cand.length<=44 && !/гражданств|разрешение/i.test(cand) &&
+                 (hadPrefix || looksLikeLocationChunk(cand));
+      if(ok) return cand;
+    }
+  }
+  return "";
+}
 
 /* ============================ fonts ============================ */
 async function fetchBase64(url){
@@ -215,11 +265,23 @@ function cleanText(text, on){
 }
 
 /* ============================ parsing ============================ */
+const HEAD_TAIL=new Set(["and","&","of","the","training","information","info","history","summary","details","background","section","skills","experience","education","и","или"]);
 function isHeader(line){
-  const t=line.trim();
-  if(!t||t.length>50) return null;
-  if(t.split(/\s+/).length>7) return null;
-  for(const [re,label] of HEAD_MAP){ if(re.test(t)) return label; }
+  let t=line.trim().replace(/\s*[:：]\s*$/,"");           // tolerate a trailing colon
+  if(!t) return null;
+  // strip an hh.ru duration tail ("— 13 лет 5 месяцев") before structural checks
+  const core=t.replace(/\s*[—\-–]\s*\d+\s*(год\w*|лет|year\w*|month\w*|мес\w*).*$/i,"").trim();
+  if(!core||core.length>40) return null;
+  if(/[,;]|[•·|]/.test(core)) return null;                // headers carry no commas or bullet separators
+  if(core.split(/\s+/).length>6) return null;
+  for(const [re,label] of HEAD_MAP){
+    const m=core.match(re);
+    if(!m) continue;
+    const rest=core.slice(m[0].length).trim();
+    if(!rest) return label;                               // keyword == whole line
+    const restWords=rest.toLowerCase().split(/\s+/).filter(Boolean);
+    if(restWords.every(w=>HEAD_TAIL.has(w))) return label; // "Education and training", "Top Skills"
+  }
   return null;
 }
 function isContactLine(tt){
@@ -252,16 +314,9 @@ function parseResume(text){
 
   const em=text.match(EMAIL_RE); if(em) res.email=em[0];
   const ph=text.match(PHONE_RE); if(ph) res.phone=ph[0].trim();
-  const linkLine=lines.find(l=>/(github\.com|behance\.net|dribbble\.com|gitlab\.com|t\.me|telegram|medium\.com|stackoverflow\.com|linkedin\.com)/i.test(l));
-  if(linkLine){ const m=linkLine.match(URL_RE); if(m) res.link=m[0]; }
-  let locLine=lines.find(l=>/проживает/i.test(l) && l.length<70);
-  if(!locLine) locLine=lines.find(l=>isLocationLine(l.trim()) && !/[•|@]/.test(l));
-  if(locLine){
-    res.loc = locLine.replace(/^.*?проживает\s*:?\s*/i,"").replace(/^[•\-\s|]+/,"").replace(/\s{2,}/g," ").trim();
-    res.loc = res.loc.split(/\s*,\s*(?=готов|не готов|можно|есть\s|гражданств)/i)[0].trim();
-    if(res.loc.length>40) res.loc=res.loc.split(",")[0].trim();
-    if(/\d{4}/.test(res.loc)||/гражданств|разрешение/i.test(res.loc)) res.loc="";
-  }
+  const linkM = text.match(/(?:https?:\/\/)?(?:www\.)?(?:github|gitlab|behance|dribbble|medium|stackoverflow)\.[a-z]{2,}\/[A-Za-z0-9_\-./]+/i) || text.match(/\bt\.me\/[A-Za-z0-9_]+/i);
+  if(linkM) res.link=linkM[0].replace(/[.,;]+$/,"");
+  res.loc = detectLocation(lines);
 
   // personal facts (hh.ru top block)
   const personal=[];
@@ -273,12 +328,16 @@ function parseResume(text){
   if(i<lines.length && /^(resume|cv|curriculum vitae|резюме)\s*$/i.test(lines[i].trim())) i++;
   while(i<lines.length && !lines[i].trim()) i++;
   const start=i;
+  let pendingHead="";
   // name is valid only above any section header / personal-facts block (hh.ru exports often omit the name)
   for(let k=start;k<Math.min(start+8,lines.length);k++){
     const t=(lines[k]||"").trim();
     if(!t) continue;
     if(isHeader(t)||PERSONAL_RE.test(t)) break;
-    if(looksLikeName(t)){ res.name=t; i=k+1; break; }
+    if(looksLikeName(t)){
+      if(JOB_TITLE_RE.test(t) && !pendingHead){ pendingHead=t; continue; } // job title sitting above the name -> headline
+      res.name=t; i=k+1; break;
+    }
     if(!isContactLine(t)) break;   // first real non-name, non-contact line -> no name here
   }
   // headline = line right after a found name
@@ -290,6 +349,7 @@ function parseResume(text){
       if(t.length<=70 && !/[•|]/.test(t)){ res.head=t; i=k+1; }
       break;
     }
+    if(!res.head && pendingHead) res.head=pendingHead;
   } else { i=start; }
 
   let cur={title:"",body:[]};
@@ -299,10 +359,20 @@ function parseResume(text){
     const t=lines[k];
     const h=isHeader(t);
     if(h){
-      if(h==="__CONTACTS__"){
-        for(let j=k+1;j<lines.length;j++){ const c=lines[j]; if(isHeader(c)) break;
+      if(h==="__CONTACTS__" || h==="__PERSONAL__"){
+        let j=k+1;
+        for(; j<lines.length; j++){
+          const c=lines[j]; if(isHeader(c)) break;
+          if(!c.trim()) continue;
           if(!res.email){const e=c.match(EMAIL_RE);if(e)res.email=e[0];}
-          if(!res.phone){const p=c.match(PHONE_RE);if(p)res.phone=p[0].trim();} }
+          if(!res.phone){const p=c.match(PHONE_RE);if(p)res.phone=p[0].trim();}
+          if(h==="__PERSONAL__"){
+            const pl=c.replace(/^[•\-\s]+/,"").trim();
+            if(pl && !EMAIL_RE.test(c) && !/^(https?:|www\.)|@/i.test(pl) && pl.length<90)
+              res.personal=(res.personal?res.personal+"\n":"")+pl;
+          }
+        }
+        k=j-1;            // skip absorbed lines
         continue;
       }
       if(started) flush();
@@ -310,7 +380,7 @@ function parseResume(text){
     } else {
       const tt=t.trim();
       if(isContactLine(tt)) continue;
-      if(!started && (tt==="" || isLocationLine(tt) || PERSONAL_RE.test(tt))) continue;
+      if(!started && (tt==="" || isLocationLine(tt) || PERSONAL_RE.test(tt) || (res.loc && tt===res.loc))) continue;
       if(!started){ cur.title=res.name&&/[а-яё]/i.test(res.name)?"Профиль":"Profile"; }
       cur.body.push(t);
       started=true;
@@ -331,6 +401,7 @@ function parseResume(text){
     if(ds){ const bl=ds.body.split("\n"); res.head=(bl.shift()||"").trim(); ds.body=bl.join("\n").trim(); }
   }
   res.sections=res.sections.filter(s=>s.body.length>0);
+  if(res.personal) res.personal=[...new Set(res.personal.split("\n").map(s=>s.trim()).filter(Boolean))].join("\n");
   return res;
 }
 
