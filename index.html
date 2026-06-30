@@ -122,6 +122,10 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 .linkfield input:focus{outline:none;border-color:var(--beige)}
 .copy-inside{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:transparent;cursor:pointer;font-size:16px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
 .copy-inside:hover{background:#E9DECB;color:var(--ink)}
+.sharebar{background:#fff;border:1px solid var(--beige-soft);border-radius:12px;box-shadow:var(--shadow);padding:12px 16px;margin-bottom:14px}
+.sharebar-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sharebar .linkfield{flex:1;min-width:220px}
+.sharebar .linkfield input{margin:0}
 .footer-note{margin-top:30px;text-align:center;font-size:12px;color:var(--muted)}
 .optbar{display:flex;gap:14px 26px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 16px;margin-bottom:14px}
 .optgroup{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -164,6 +168,20 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
   </div>
   <div class="blind-note" id="blindNote">⚠️ В слепой анкете скрыты <b>имя, фамилия, телефон, email и ссылки</b>. Остаются <b>фото</b>, должность, локация, опыт, образование и навыки. Применяется и к PDF, и к ссылке.</div>
 
+  <div class="sharebar" id="shareBar" style="display:none">
+    <div class="sharebar-row">
+      <span class="optlabel">Ссылка на резюме</span>
+      <div class="linkfield">
+        <input id="shareLink" readonly>
+        <button class="copy-inside" id="copyLink" title="Скопировать ссылку" aria-label="Скопировать ссылку">📋</button>
+      </div>
+      <button class="btn-primary" id="modalDownload" style="padding:9px 14px;white-space:nowrap">⬇ Скачать PDF</button>
+      <a id="openLink" class="btn-ghost" target="_blank" rel="noopener" style="padding:8px 12px;white-space:nowrap">Открыть ↗</a>
+      <button class="btn-mini" id="shareClose" title="Скрыть" style="padding:7px 10px">✕</button>
+    </div>
+    <div class="muted" id="modalDesc" style="margin-top:7px"></div>
+  </div>
+
   <div class="grid">
     <!-- LEFT -->
     <div>
@@ -179,15 +197,6 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
             <div class="ic">⬆️</div>
             <div class="big">Перетащите файл или нажмите</div>
             <div class="small">PDF · DOCX · TXT · PNG · JPG &nbsp;(фото из PDF переносится автоматически)</div>
-          </label>
-          <label class="field" style="margin-top:8px">
-            <span style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)">Язык распознавания фото (OCR)</span>
-            <select id="ocrLang">
-              <option value="eng+rus">Английский + Русский</option>
-              <option value="eng">Только английский</option>
-              <option value="rus">Только русский</option>
-              <option value="eng+rus+ara">Англ. + Рус. + Арабский</option>
-            </select>
           </label>
           <div id="fileChips"></div>
         </div>
@@ -259,25 +268,6 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
     </div>
   </div>
   <div class="footer-note">TLNT.AE Resume Formatter · файлы не покидают компьютер · PDF · DOCX · TXT · PNG · JPG</div>
-</div>
-
-<!-- Share modal -->
-<div class="modal-bg" id="modalBg">
-  <div class="modal">
-    <h3 id="modalTitle">Ссылка на резюме</h3>
-    <p class="muted" id="modalDesc">Ссылка содержит всё резюме целиком — открывается в любом браузере, сервер не нужен.</p>
-    <div class="linkrow">
-      <div class="linkfield">
-        <input id="shareLink" readonly>
-        <button class="copy-inside" id="copyLink" title="Скопировать ссылку" aria-label="Скопировать ссылку">📋</button>
-      </div>
-      <button class="btn-primary" id="modalDownload" style="padding:11px 16px;white-space:nowrap">⬇ Скачать PDF</button>
-    </div>
-    <div class="modal-actions">
-      <a id="openLink" class="btn-ghost" target="_blank" rel="noopener">Открыть ссылку ↗</a>
-      <button class="btn-mini" id="modalClose" style="margin-left:auto">Закрыть</button>
-    </div>
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -413,7 +403,7 @@ async function handleFiles(files){
     cb("Обрабатываю…",0.05);
     let all=[], photo="";
     for(const f of files){
-      const r=await TLNT.extractFile(f,{lang:$("#ocrLang").value,cb});
+      const r=await TLNT.extractFile(f,{lang:"eng+rus",cb});   // OCR script auto (eng+rus); output language handled by the RU/EN switch
       all.push(r.text||""); if(!photo && r.photo) photo=r.photo;
     }
     let text=TLNT.cleanText(all.join("\n\n"), $("#cleanToggle").checked);
@@ -473,11 +463,12 @@ async function saveToLib(){
   showShare(url, d.name, !!shortUrl);
 }
 function showShare(url,name,isShort){
-  $("#shareLink").value=url; $("#openLink").href=url; $("#modalTitle").textContent="Ссылка: "+(name||"резюме");
-  $("#modalBg").classList.add("show");
+  $("#shareLink").value=url; $("#openLink").href=url;
   if(isShort) $("#modalDesc").textContent="Короткая ссылка на резюме — открывается в любом браузере, можно скачать PDF.";
-  else if(url.length>6000) $("#modalDesc").textContent="Ссылка длинная (с фото). Открывается в любом браузере; лучше отправлять через мессенджер, а не вставлять в адресную строку вручную.";
-  else $("#modalDesc").textContent="Ссылка содержит всё резюме целиком — открывается в любом браузере, сервер не нужен.";
+  else if(url.length>6000) $("#modalDesc").textContent="Длинная ссылка (с фото). Открывается в любом браузере; лучше отправлять через мессенджер.";
+  else $("#modalDesc").textContent="Ссылка содержит всё резюме целиком — открывается в любом браузере.";
+  $("#shareBar").style.display="block";
+  $("#shareBar").scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 
 /* ---- wiring ---- */
@@ -507,8 +498,7 @@ document.querySelectorAll(".lang-opt").forEach(b=>b.onclick=()=>setLang(b.datase
 // share modal
 $("#copyLink").onclick=()=>{ const i=$("#shareLink"); i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
 $("#modalDownload").onclick=()=>{ if(!modalData){return;} const b=$("#modalDownload"); b.textContent="Готовлю…"; TLNT.downloadResumePdf(modalData).then(()=>b.textContent="⬇ Скачать PDF").catch(e=>{b.textContent="Ошибка";console.error(e);}); };
-$("#modalClose").onclick=()=>$("#modalBg").classList.remove("show");
-$("#modalBg").onclick=e=>{ if(e.target===$("#modalBg")) $("#modalBg").classList.remove("show"); };
+$("#shareClose").onclick=()=>$("#shareBar").style.display="none";
 
 renderLib();
 TLNT.ensureFonts().catch(()=>{});
