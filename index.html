@@ -240,11 +240,6 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
         </div>
       </div>
 
-      <div class="card panel" style="margin-top:22px">
-        <h2>3 · База резюме</h2>
-        <p class="muted">Сохранённые резюме хранятся в этом браузере. У каждого — своя ссылка, которую можно открыть из любого браузера.</p>
-        <div id="libList"></div>
-      </div>
     </div>
 
     <!-- RIGHT -->
@@ -279,7 +274,7 @@ const status=m=>{ $("#status").textContent=m||""; };
 const cb=(m,p)=>{ status(m); const b=$("#bar"); b.classList.toggle("show",!!m); if(p!=null)$("#bar i").style.width=Math.round(p*100)+"%"; };
 let photoData="", lastFiles=[], mode="full";   // mode: "full" | "blind"
 let lang="ru", langCache={}, modalData=null;   // lang: "ru" | "en"
-let curEntryId=null, curSlug=null, curDel=null, autoTimer=null, autoSeq=0;   // auto-link state
+let curSlug=null, curDel=null, autoTimer=null, autoSeq=0;   // auto-link state (in memory only)
 
 /* short-link + translation backend (Cloudflare Worker on cv.tlnt.ae). If unreachable, links fall back to long form. */
 const CV_API = "https://cv.tlnt.ae/api/save";
@@ -318,7 +313,7 @@ function renderEditor(d){
   lang=detectLang(d); langCache={};
   fillEditor(d);
   setLangUI();
-  curEntryId=null; curSlug=null; curDel=null;   // new resume -> fresh auto-link; previous saved resumes stay intact
+  curSlug=null; curDel=null;   // new resume -> fresh auto-link; previously shared links stay intact
   setMode("full"); $("#downloadBtn").disabled=false;
   resetShare();
   langCache[lang]=collect();
@@ -416,32 +411,10 @@ async function handleFiles(files){
   }catch(e){ console.error(e); cb(""); status("Ошибка: "+e.message); }
 }
 
-/* ---- library (localStorage) ---- */
-const LIB_KEY="tlnt_lib_v1";
-function libLoad(){ try{ return JSON.parse(localStorage.getItem(LIB_KEY)||"[]"); }catch(e){ return []; } }
-function libSave(arr){ localStorage.setItem(LIB_KEY, JSON.stringify(arr)); }
-function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString("ru-RU")+" "+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}); }
+/* nothing about candidates is stored in the browser — only the link carries the data */
 function shareUrl(payload){ return location.origin+location.pathname.replace(/index\.html$/,"")+"view.html#"+payload; }
-function renderLib(){
-  const arr=libLoad().sort((a,b)=>b.ts-a.ts); const box=$("#libList");
-  if(!arr.length){ box.innerHTML='<div class="lib-empty">Пока пусто. Нажмите «Сохранить + ссылка».</div>'; return; }
-  box.innerHTML=arr.map(it=>`<div class="lib-item" data-id="${it.id}">
-      <img src="${it.thumb||''}" onerror="this.style.visibility='hidden'">
-      <div class="meta"><b>${(it.name||'Без имени').replace(/</g,'&lt;')}${it.mode==='blind'?'<span class="tag">слепая</span>':''}</b><small>${(it.role||'').replace(/</g,'&lt;')} · ${fmtDate(it.ts)}</small></div>
-      <button class="btn-mini act-link">🔗</button><button class="btn-mini act-load">Открыть</button><button class="btn-mini act-del">✕</button>
-    </div>`).join("");
-  box.querySelectorAll(".lib-item").forEach(row=>{
-    const id=row.dataset.id; const it=libLoad().find(x=>x.id===id);
-    row.querySelector(".act-link").onclick=()=>{ modalData=TLNT.decodePayload(it.payload)||null; showShare(it.url || shareUrl(it.payload), it.name, !!it.short); };
-    row.querySelector(".act-load").onclick=()=>{ const d=TLNT.decodePayload(it.payload); if(d){ renderEditor(d); window.scrollTo({top:0,behavior:"smooth"}); } };
-    row.querySelector(".act-del").onclick=async()=>{ if(confirm("Удалить из базы? Короткая ссылка перестанет открываться.")){
-      if(it.short && it.del && it.url){ try{ await fetch(CV_DELETE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug:it.url.split("/").pop(), del:it.del})}); }catch(e){} }
-      libSave(libLoad().filter(x=>x.id!==id)); renderLib();
-    } };
-  });
-}
 // Auto-create / refresh the resume link whenever the resume is ready or changes.
-// Deletes the previous auto-copy of THIS resume (other saved resumes stay intact) and keeps one library entry per resume.
+// Deletes the previous auto-copy of THIS resume so nothing accumulates. Nothing is stored in the browser.
 async function regenLink(){
   const d=applyMode(collect());
   if(!d.name && !d.sections.length) return;
@@ -464,11 +437,6 @@ async function regenLink(){
   if(prevSlug&&prevDel) fetch(CV_DELETE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug:prevSlug,del:prevDel})}).catch(()=>{});
   curSlug=slug||null; curDel=del||null; modalData=d;
   const url=shortUrl||shareUrl(payload);
-  const arr=libLoad();
-  let it=arr.find(x=>x.id===curEntryId);
-  if(!it){ curEntryId="r"+Date.now().toString(36)+Math.floor(performance.now()).toString(36); it={id:curEntryId}; arr.push(it); }
-  Object.assign(it,{name:d.name, role:d.head, ts:Date.now(), url, payload, thumb:data.photo||"", short:!!shortUrl, del, mode});
-  libSave(arr); renderLib();
   showShare(url, d.name, !!shortUrl);
   $("#langStatus").textContent = shortUrl ? "ссылка готова ✓" : "ссылка готова (длинная) ✓";
   setTimeout(()=>{ if($("#langStatus").textContent.startsWith("ссылка готова")) $("#langStatus").textContent=""; }, 2500);
@@ -511,7 +479,7 @@ $("#modalDownload").onclick=()=>{ const d = modalData || ($("#editorBody").style
   if(!d || (!d.name && !(d.sections&&d.sections.length))){ status("Сначала загрузите резюме."); return; }
   const b=$("#modalDownload"); b.textContent="Готовлю…"; TLNT.downloadResumePdf(d).then(()=>b.textContent="⬇ Скачать PDF").catch(e=>{b.textContent="Ошибка";console.error(e);}); };
 
-renderLib();
+try{ localStorage.removeItem("tlnt_lib_v1"); }catch(e){}   // wipe any resumes stored by older versions — nothing is kept in the browser now
 TLNT.ensureFonts().catch(()=>{});
 </script>
 </body>
