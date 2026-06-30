@@ -247,9 +247,6 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
       <div class="preview-shell">
         <div class="preview-toolbar">
           <span class="t">Предпросмотр PDF</span>
-          <div style="display:flex;gap:8px">
-            <button class="btn-primary" id="downloadBtn" disabled style="padding:11px 16px">⬇ PDF</button>
-          </div>
         </div>
         <div class="page" id="page">
           <div class="empty-preview"><div style="font-size:34px">📄</div>
@@ -314,7 +311,7 @@ function renderEditor(d){
   fillEditor(d);
   setLangUI();
   curSlug=null; curDel=null;   // new resume -> fresh auto-link; previously shared links stay intact
-  setMode("full"); $("#downloadBtn").disabled=false;
+  setMode("full");
   resetShare();
   langCache[lang]=collect();
 }
@@ -465,7 +462,6 @@ drop.addEventListener("drop",e=>handleFiles(e.dataTransfer.files));
 $("#parsePaste").onclick=()=>{ let t=$("#pasteArea").value; if(!t.trim()){status("Вставьте текст.");return;}
   const p=TLNT.parseResume(TLNT.cleanText(t,true)); renderEditor(p); status("Разобрано ✓"); };
 $("#addSec").onclick=()=>addSection("","");
-$("#downloadBtn").onclick=()=>{ status("Готовлю PDF…"); TLNT.downloadResumePdf(applyMode(collect()),cb).then(()=>{cb("");status("Готово ✓ PDF сохранён.");}).catch(e=>{cb("");status("Ошибка PDF: "+e.message);}); };
 document.querySelectorAll(".ms-opt").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 $("#photoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>setPhoto(r.result); r.readAsDataURL(f); });
 $("#photoRemove").onclick=()=>setPhoto("");
