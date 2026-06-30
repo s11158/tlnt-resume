@@ -206,8 +206,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
         <div id="status"></div>
         <div class="bar" id="bar"><i></i></div>
         <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
-          <label class="toggle"><input type="checkbox" id="cleanToggle" checked>
-            <span>Убирать упоминания источников (LinkedIn, hh.ru, ContactOut…) и водяные знаки</span></label>
+          <span class="muted">🧹 Упоминания источников (LinkedIn, hh.ru, ContactOut…) и водяные знаки убираются автоматически.</span>
         </div>
       </div>
 
@@ -406,7 +405,7 @@ async function handleFiles(files){
       const r=await TLNT.extractFile(f,{lang:"eng+rus",cb});   // OCR script auto (eng+rus); output language handled by the RU/EN switch
       all.push(r.text||""); if(!photo && r.photo) photo=r.photo;
     }
-    let text=TLNT.cleanText(all.join("\n\n"), $("#cleanToggle").checked);
+    let text=TLNT.cleanText(all.join("\n\n"), true);
     if(!text.trim() && !photo){ cb(""); status("Не удалось извлечь текст. Для фото попробуйте другой язык OCR/чёткое изображение."); return; }
     const parsed=TLNT.parseResume(text); parsed.photo=photo;
     renderEditor(parsed);
@@ -484,8 +483,7 @@ const drop=$("#drop");
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
 drop.addEventListener("drop",e=>handleFiles(e.dataTransfer.files));
 $("#parsePaste").onclick=()=>{ let t=$("#pasteArea").value; if(!t.trim()){status("Вставьте текст.");return;}
-  const p=TLNT.parseResume(TLNT.cleanText(t,$("#cleanToggle").checked)); renderEditor(p); status("Разобрано ✓"); };
-$("#cleanToggle").addEventListener("change",()=>{ if(lastFiles.length) handleFiles(lastFiles); });
+  const p=TLNT.parseResume(TLNT.cleanText(t,true)); renderEditor(p); status("Разобрано ✓"); };
 $("#addSec").onclick=()=>addSection("","");
 $("#downloadBtn").onclick=()=>{ status("Готовлю PDF…"); TLNT.downloadResumePdf(applyMode(collect()),cb).then(()=>{cb("");status("Готово ✓ PDF сохранён.");}).catch(e=>{cb("");status("Ошибка PDF: "+e.message);}); };
 document.querySelectorAll(".ms-opt").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
