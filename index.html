@@ -253,7 +253,6 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
         <div class="preview-toolbar">
           <span class="t">Предпросмотр PDF</span>
           <div style="display:flex;gap:8px">
-            <button class="btn-accent" id="saveBtn" disabled style="padding:11px 16px">🔗 Сохранить + ссылка</button>
             <button class="btn-primary" id="downloadBtn" disabled style="padding:11px 16px">⬇ PDF</button>
           </div>
         </div>
@@ -280,6 +279,7 @@ const status=m=>{ $("#status").textContent=m||""; };
 const cb=(m,p)=>{ status(m); const b=$("#bar"); b.classList.toggle("show",!!m); if(p!=null)$("#bar i").style.width=Math.round(p*100)+"%"; };
 let photoData="", lastFiles=[], mode="full";   // mode: "full" | "blind"
 let lang="ru", langCache={}, modalData=null;   // lang: "ru" | "en"
+let curEntryId=null, curSlug=null, curDel=null, autoTimer=null, autoSeq=0;   // auto-link state
 
 /* short-link + translation backend (Cloudflare Worker on cv.tlnt.ae). If unreachable, links fall back to long form. */
 const CV_API = "https://cv.tlnt.ae/api/save";
@@ -318,7 +318,8 @@ function renderEditor(d){
   lang=detectLang(d); langCache={};
   fillEditor(d);
   setLangUI();
-  setMode("full"); $("#downloadBtn").disabled=false; $("#saveBtn").disabled=false;
+  curEntryId=null; curSlug=null; curDel=null;   // new resume -> fresh auto-link; previous saved resumes stay intact
+  setMode("full"); $("#downloadBtn").disabled=false;
   resetShare();
   langCache[lang]=collect();
 }
@@ -392,7 +393,8 @@ function setMode(m){
   $("#blindNote").classList.toggle("show", mode==="blind");
   updatePreview();
 }
-function updatePreview(){ if($("#editorBody").style.display==="none") return; TLNT.renderPreview($("#page"), applyMode(collect())); }
+function updatePreview(){ if($("#editorBody").style.display==="none") return; TLNT.renderPreview($("#page"), applyMode(collect())); scheduleAutolink(); }
+function scheduleAutolink(){ clearTimeout(autoTimer); autoTimer=setTimeout(()=>regenLink().catch(()=>{}), 1400); }
 
 /* ---- pipeline ---- */
 async function handleFiles(files){
@@ -438,28 +440,38 @@ function renderLib(){
     } };
   });
 }
-async function saveToLib(){
+// Auto-create / refresh the resume link whenever the resume is ready or changes.
+// Deletes the previous auto-copy of THIS resume (other saved resumes stay intact) and keeps one library entry per resume.
+async function regenLink(){
   const d=applyMode(collect());
-  if(!d.name && !d.sections.length){ status("Нечего сохранять."); return; }
-  cb("Сохраняю и создаю ссылку…",0.4);
+  if(!d.name && !d.sections.length) return;
+  if(document.querySelector(".lang-opt:disabled")){ scheduleAutolink(); return; }  // wait until a translation finishes
+  const seq=++autoSeq;
   const data=JSON.parse(JSON.stringify(d));
-  if(data.photo) data.photo=await shrinkDataUrl(data.photo,210,0.7);   // keep payload compact
-  const payload=TLNT.encodePayload(data);                              // always keep for local re-open / fallback
-  // try the short-link backend; fall back to the self-contained long link
-  let shortUrl="", del="";
+  if(data.photo) data.photo=await shrinkDataUrl(data.photo,210,0.7);               // keep payload compact
+  const payload=TLNT.encodePayload(data);                                          // self-contained fallback
+  const prevSlug=curSlug, prevDel=curDel;
+  $("#langStatus").textContent="ссылка обновляется…";
+  let shortUrl="", del="", slug="";
   try{
     const r=await fetch(CV_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
-    if(r.ok){ const jr=await r.json(); if(jr&&jr.url){ shortUrl=jr.url; del=jr.del||""; } }
-    else if(r.status===429) status("Дневной лимит коротких ссылок исчерпан — создана длинная ссылка.");
-    else if(r.status===413) status("Файл великоват для короткой ссылки — создана длинная ссылка.");
-  }catch(e){ /* offline or backend not deployed yet -> long link */ }
-  const url = shortUrl || shareUrl(payload);
-  const thumb=data.photo||"";
-  const id="r"+Date.now().toString(36)+Math.floor(performance.now()).toString(36);
-  const arr=libLoad(); arr.push({id, name:d.name, role:d.head, ts:Date.now(), url, payload, thumb, short:!!shortUrl, del, mode});
-  libSave(arr); renderLib(); cb("");
-  modalData=d;
+    if(r.ok){ const jr=await r.json(); if(jr&&jr.url){ shortUrl=jr.url; del=jr.del||""; slug=jr.slug||""; } }
+  }catch(e){ /* offline / backend down -> long link */ }
+  if(seq!==autoSeq){ // a newer change superseded this one -> drop the copy we just made
+    if(slug&&del) fetch(CV_DELETE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,del})}).catch(()=>{});
+    return;
+  }
+  if(prevSlug&&prevDel) fetch(CV_DELETE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug:prevSlug,del:prevDel})}).catch(()=>{});
+  curSlug=slug||null; curDel=del||null; modalData=d;
+  const url=shortUrl||shareUrl(payload);
+  const arr=libLoad();
+  let it=arr.find(x=>x.id===curEntryId);
+  if(!it){ curEntryId="r"+Date.now().toString(36)+Math.floor(performance.now()).toString(36); it={id:curEntryId}; arr.push(it); }
+  Object.assign(it,{name:d.name, role:d.head, ts:Date.now(), url, payload, thumb:data.photo||"", short:!!shortUrl, del, mode});
+  libSave(arr); renderLib();
   showShare(url, d.name, !!shortUrl);
+  $("#langStatus").textContent = shortUrl ? "ссылка готова ✓" : "ссылка готова (длинная) ✓";
+  setTimeout(()=>{ if($("#langStatus").textContent.startsWith("ссылка готова")) $("#langStatus").textContent=""; }, 2500);
 }
 function showShare(url,name,isShort){
   $("#shareLink").value=url; $("#openLink").href=url;
@@ -487,7 +499,6 @@ $("#parsePaste").onclick=()=>{ let t=$("#pasteArea").value; if(!t.trim()){status
 $("#addSec").onclick=()=>addSection("","");
 $("#downloadBtn").onclick=()=>{ status("Готовлю PDF…"); TLNT.downloadResumePdf(applyMode(collect()),cb).then(()=>{cb("");status("Готово ✓ PDF сохранён.");}).catch(e=>{cb("");status("Ошибка PDF: "+e.message);}); };
 document.querySelectorAll(".ms-opt").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
-$("#saveBtn").onclick=()=>saveToLib().catch(e=>{cb("");status("Ошибка: "+e.message);});
 $("#photoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>setPhoto(r.result); r.readAsDataURL(f); });
 $("#photoRemove").onclick=()=>setPhoto("");
 // field edits update the preview (attached once; fields are static in the DOM)
