@@ -416,6 +416,9 @@ function bulletize(body){
   }).join("");
 }
 function safeImg(v){ return (typeof v==="string" && /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(v)) ? v : ""; }
+function footerLeft(d){ return (d&&d.lang==="en")
+  ? "Prepared by TLNT.AE — talent & recruitment agency, Dubai, UAE"
+  : "Подготовлено агентством TLNT.AE — подбор персонала, Дубай, ОАЭ"; }
 function renderPreview(el, d){
   const contacts=[d.email,d.phone,d.loc,d.link].filter(Boolean);
   const logo=safeImg(d.logo), photo=safeImg(d.photo);
@@ -433,7 +436,7 @@ function renderPreview(el, d){
       ${photoHtml?`<div class="p-photowrap">${photoHtml}</div>`:""}
     </div>
     ${(d.sections||[]).map(s=>`<div class="p-sec">${s.title?`<h3>${escapeHtml(s.title)}</h3>`:""}<div class="body">${bulletize(s.body)}</div></div>`).join("")}
-    <div class="p-foot"><span>Prepared by TLNT.AE · Talent Agency, UAE</span><span>tlnt.ae</span></div>`;
+    <div class="p-foot"><span>${escapeHtml(footerLeft(d))}</span><span>tlnt.ae</span></div>`;
 }
 
 /* ============================ PDF build ============================ */
@@ -467,7 +470,7 @@ async function buildResumeDoc(d, cb){
   function footer(){
     doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(.6); doc.line(M,H-40,W-M,H-40);
     doc.setFont("Roboto","normal"); doc.setFontSize(7.5); setC(MUT);
-    doc.text("Prepared by TLNT.AE · Talent Agency, UAE", M, H-28);
+    doc.text(footerLeft(d), M, H-28);
     doc.text("tlnt.ae", W-M, H-28, {align:"right"});
   }
   function newPage(){ footer(); doc.addPage(); y=masthead(false); }

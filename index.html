@@ -127,6 +127,16 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 .linkbox{display:flex;gap:8px;margin-top:14px}
 .linkbox input{flex:1;border:1px solid var(--line);border-radius:9px;padding:11px;font-size:12px;font-family:'Roboto Mono',monospace;color:var(--ink)}
 .footer-note{margin-top:30px;text-align:center;font-size:12px;color:var(--muted)}
+.langbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:10px 14px;margin-bottom:22px}
+.langbar-label{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:500}
+.lang-opt{font-family:inherit;font-size:14px;font-weight:500;padding:8px 16px;border:1.5px solid var(--line);border-radius:9px;background:#FBF7F0;color:var(--muted);cursor:pointer;transition:.15s}
+.lang-opt:hover{border-color:var(--beige)}
+.lang-opt.active{background:var(--graphite);color:#fff;border-color:var(--graphite)}
+.lang-opt:disabled{opacity:.55;cursor:wait}
+.langbar-hint{font-size:12px;color:var(--muted)}
+.modal .modal-actions{display:flex;gap:8px;margin-top:14px;align-items:center}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:42px;border:1px solid var(--line);border-radius:9px;background:#FBF7F0;cursor:pointer;font-size:18px;flex:0 0 auto}
+.icon-btn:hover{border-color:var(--beige);background:#FBF3E7}
 </style>
 </head>
 <body>
@@ -138,6 +148,13 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
     </div>
     <div class="right">Любое резюме → единый PDF TLNT.AE. Сохраняет фото и все данные.<br>
       <span class="lock">🔒 Обработка локально в браузере</span></div>
+  </div>
+
+  <div class="langbar">
+    <span class="langbar-label">Язык резюме</span>
+    <button type="button" class="lang-opt active" data-lang="ru">🇷🇺 Русская версия</button>
+    <button type="button" class="lang-opt" data-lang="en">🇬🇧 English version</button>
+    <span id="langStatus" class="langbar-hint"></span>
   </div>
 
   <div class="grid">
@@ -221,18 +238,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
       </div>
 
       <div class="card panel" style="margin-top:22px">
-        <h2>3 · Логотип в PDF</h2>
-        <p class="muted">По умолчанию — текстовый логотип <b>TLNT.AE</b>. Можно загрузить свой PNG/SVG.</p>
-        <div class="row">
-          <label class="btn-ghost" style="position:relative;overflow:hidden">Загрузить логотип
-            <input type="file" id="logoInput" accept="image/png,image/jpeg" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
-          <button class="btn-mini" id="logoReset" style="display:none">Вернуть текстовый</button>
-          <span id="logoName" class="muted"></span>
-        </div>
-      </div>
-
-      <div class="card panel" style="margin-top:22px">
-        <h2>4 · База резюме</h2>
+        <h2>3 · База резюме</h2>
         <p class="muted">Сохранённые резюме хранятся в этом браузере. У каждого — своя ссылка, которую можно открыть из любого браузера.</p>
         <div id="libList"></div>
       </div>
@@ -264,10 +270,14 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
   <div class="modal">
     <h3 id="modalTitle">Ссылка на резюме</h3>
     <p class="muted" id="modalDesc">Ссылка содержит всё резюме целиком — открывается в любом браузере, сервер не нужен.</p>
-    <div class="linkbox"><input id="shareLink" readonly><button class="btn-primary" id="copyLink" style="padding:11px 16px">Копировать</button></div>
-    <div class="row" style="justify-content:space-between">
+    <div class="linkbox">
+      <input id="shareLink" readonly>
+      <button class="icon-btn" id="copyLink" title="Скопировать ссылку" aria-label="Скопировать ссылку">📋</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="modalDownload" style="padding:11px 18px">⬇ Скачать PDF</button>
       <a id="openLink" class="btn-ghost" target="_blank" rel="noopener">Открыть ссылку ↗</a>
-      <button class="btn-mini" id="modalClose">Закрыть</button>
+      <button class="btn-mini" id="modalClose" style="margin-left:auto">Закрыть</button>
     </div>
   </div>
 </div>
@@ -277,16 +287,18 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 <script>
 const $=s=>document.querySelector(s);
 const status=m=>{ $("#status").textContent=m||""; };
 const cb=(m,p)=>{ status(m); const b=$("#bar"); b.classList.toggle("show",!!m); if(p!=null)$("#bar i").style.width=Math.round(p*100)+"%"; };
-let photoData="", logoData="", lastFiles=[], mode="full";   // mode: "full" | "blind"
+let photoData="", lastFiles=[], mode="full";   // mode: "full" | "blind"
+let lang="ru", langCache={}, modalData=null;   // lang: "ru" | "en"
 
-/* short-link backend (Cloudflare Worker on cv.tlnt.ae). If unreachable, we fall back to a self-contained long link. */
+/* short-link + translation backend (Cloudflare Worker on cv.tlnt.ae). If unreachable, links fall back to long form. */
 const CV_API = "https://cv.tlnt.ae/api/save";
 const CV_DELETE = "https://cv.tlnt.ae/api/delete";
+const CV_TRANSLATE = "https://cv.tlnt.ae/api/translate";
 
 /* ---- downscale a dataURL (for compact share links) ---- */
 function shrinkDataUrl(dataUrl, maxW, q){
@@ -302,20 +314,26 @@ function setPhoto(d){ photoData=d||""; const t=$("#photoThumb");
   if(d){ t.src=d; t.style.display="block"; $("#photoRemove").style.display="inline-block"; }
   else { t.style.display="none"; $("#photoRemove").style.display="none"; }
   updatePreview(); }
-function setLogo(d,name){ logoData=d||""; $("#logoReset").style.display=d?"inline-block":"none";
-  $("#logoName").textContent=name||""; updatePreview(); }
-
 /* ---- editor ---- */
-function renderEditor(d){
-  $("#editorHint").style.display="none"; $("#editorBody").style.display="block";
+function fillEditor(d){
   $("#fName").value=d.name||""; $("#fHead").value=d.head||"";
   $("#fEmail").value=d.email||""; $("#fPhone").value=d.phone||"";
   $("#fLoc").value=d.loc||""; $("#fLink").value=d.link||""; $("#fPersonal").value=d.personal||"";
   setPhoto(d.photo||"");
   const wrap=$("#sections"); wrap.innerHTML="";
-  (d.sections&&d.sections.length?d.sections:[{title:"Профиль",body:""}]).forEach(s=>addSection(s.title,s.body));
-  ["#fName","#fHead","#fEmail","#fPhone","#fLoc","#fLink","#fPersonal"].forEach(s=>$(s).addEventListener("input",updatePreview));
+  (d.sections&&d.sections.length?d.sections:[{title:lang==="en"?"Profile":"Профиль",body:""}]).forEach(s=>addSection(s.title,s.body));
+}
+function detectLang(d){
+  const t=(d.name||"")+" "+(d.head||"")+" "+(d.personal||"")+" "+((d.sections||[]).map(s=>(s.title||"")+(s.body||"")).join(" "));
+  return /[а-яё]/i.test(t)?"ru":"en";
+}
+function renderEditor(d){
+  $("#editorHint").style.display="none"; $("#editorBody").style.display="block";
+  lang=detectLang(d); langCache={};
+  fillEditor(d);
+  setLangUI();
   setMode("full"); $("#downloadBtn").disabled=false; $("#saveBtn").disabled=false;
+  langCache[lang]=collect();
 }
 function addSection(title,body){
   const el=document.createElement("div"); el.className="sec";
@@ -337,7 +355,42 @@ function collect(){
   return { name:$("#fName").value.trim(), head:$("#fHead").value.trim(),
     email:$("#fEmail").value.trim(), phone:$("#fPhone").value.trim(),
     loc:$("#fLoc").value.trim(), link:$("#fLink").value.trim(),
-    personal:$("#fPersonal").value.replace(/\s+$/,""), photo:photoData, logo:logoData, sections:secs };
+    personal:$("#fPersonal").value.replace(/\s+$/,""), photo:photoData, logo:"", lang:lang, sections:secs };
+}
+
+/* ---- language / translation (RU <-> EN via Cloudflare Workers AI in the worker) ---- */
+const RU2LAT={а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"kh",ц:"ts",ч:"ch",ш:"sh",щ:"shch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya"};
+function translitName(s){ if(!s||!/[а-яё]/i.test(s)) return s||"";
+  return s.split("").map(c=>{ const low=c.toLowerCase(); const r=RU2LAT[low]; if(r==null) return c; return c===low?r:(r?r[0].toUpperCase()+r.slice(1):r); }).join(""); }
+function setLangUI(){ document.querySelectorAll(".lang-opt").forEach(b=>b.classList.toggle("active", b.dataset.lang===lang)); }
+function setLangDisabled(v){ document.querySelectorAll(".lang-opt").forEach(b=>b.disabled=v); }
+async function translateData(d, source, target){
+  const q=[]; const push=v=>q.push(typeof v==="string"?v:"")-1;
+  const iHead=push(d.head), iPers=push(d.personal), iLoc=push(d.loc);
+  const sidx=(d.sections||[]).map(s=>({t:push(s.title), b:push(s.body)}));
+  const r=await fetch(CV_TRANSLATE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({q, source, target})});
+  if(!r.ok) throw new Error("translate "+r.status);
+  const t=(await r.json()).t||[];
+  const out=JSON.parse(JSON.stringify(d));
+  out.head=t[iHead]??d.head; out.personal=t[iPers]??d.personal; out.loc=t[iLoc]??d.loc;
+  out.sections=(d.sections||[]).map((s,i)=>({title:t[sidx[i].t]??s.title, body:t[sidx[i].b]??s.body}));
+  out.name = target==="en" ? translitName(d.name) : (d.name||"");
+  out.lang=target;
+  return out;
+}
+async function setLang(target){
+  target=(target==="en")?"en":"ru";
+  if(target===lang || $(".lang-opt").disabled) return;
+  if($("#editorBody").style.display==="none"){ lang=target; setLangUI(); return; } // nothing loaded yet
+  langCache[lang]=collect();                                  // preserve edits in the current language
+  if(langCache[target]){ lang=target; fillEditor(langCache[target]); setLangUI(); updatePreview(); status(""); return; }
+  setLangDisabled(true); cb("Перевод "+(target==="en"?"на английский":"на русский")+"…",0.3);
+  try{
+    const translated=await translateData(langCache[lang]||collect(), lang, target);
+    langCache[target]=translated; lang=target; fillEditor(translated); cb(""); status("Переведено ✓ Проверьте текст перед сохранением.");
+  }catch(e){
+    cb(""); status("⚠️ Перевод пока недоступен (бэкенд перевода ещё не подключён). Версия осталась на «"+(lang==="ru"?"русском":"английском")+"».");
+  }finally{ setLangDisabled(false); setLangUI(); updatePreview(); }
 }
 /* blind mode: strip everything that identifies the candidate, keep the professional profile */
 function applyMode(d){
@@ -390,8 +443,8 @@ function renderLib(){
     </div>`).join("");
   box.querySelectorAll(".lib-item").forEach(row=>{
     const id=row.dataset.id; const it=libLoad().find(x=>x.id===id);
-    row.querySelector(".act-link").onclick=()=>showShare(it.url || shareUrl(it.payload), it.name, !!it.short);
-    row.querySelector(".act-load").onclick=()=>{ const d=TLNT.decodePayload(it.payload); if(d){ logoData=d.logo||""; setLogo(logoData, logoData?"свой логотип":""); renderEditor(d); window.scrollTo({top:0,behavior:"smooth"}); } };
+    row.querySelector(".act-link").onclick=()=>{ modalData=TLNT.decodePayload(it.payload)||null; showShare(it.url || shareUrl(it.payload), it.name, !!it.short); };
+    row.querySelector(".act-load").onclick=()=>{ const d=TLNT.decodePayload(it.payload); if(d){ renderEditor(d); window.scrollTo({top:0,behavior:"smooth"}); } };
     row.querySelector(".act-del").onclick=async()=>{ if(confirm("Удалить из базы? Короткая ссылка перестанет открываться.")){
       if(it.short && it.del && it.url){ try{ await fetch(CV_DELETE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug:it.url.split("/").pop(), del:it.del})}); }catch(e){} }
       libSave(libLoad().filter(x=>x.id!==id)); renderLib();
@@ -418,6 +471,7 @@ async function saveToLib(){
   const id="r"+Date.now().toString(36)+Math.floor(performance.now()).toString(36);
   const arr=libLoad(); arr.push({id, name:d.name, role:d.head, ts:Date.now(), url, payload, thumb, short:!!shortUrl, del, mode});
   libSave(arr); renderLib(); cb("");
+  modalData=d;
   showShare(url, d.name, !!shortUrl);
 }
 function showShare(url,name,isShort){
@@ -448,9 +502,13 @@ document.querySelectorAll(".ms-opt").forEach(b=>b.onclick=()=>setMode(b.dataset.
 $("#saveBtn").onclick=()=>saveToLib().catch(e=>{cb("");status("Ошибка: "+e.message);});
 $("#photoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>setPhoto(r.result); r.readAsDataURL(f); });
 $("#photoRemove").onclick=()=>setPhoto("");
-$("#logoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>setLogo(r.result,f.name); r.readAsDataURL(f); });
-$("#logoReset").onclick=()=>setLogo("","");
-$("#copyLink").onclick=()=>{ const i=$("#shareLink"); i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="Скопировано ✓";setTimeout(()=>$("#copyLink").textContent="Копировать",1500);}).catch(()=>document.execCommand("copy")); };
+// field edits update the preview (attached once; fields are static in the DOM)
+["#fName","#fHead","#fEmail","#fPhone","#fLoc","#fLink","#fPersonal"].forEach(s=>$(s).addEventListener("input",updatePreview));
+// language switch
+document.querySelectorAll(".lang-opt").forEach(b=>b.onclick=()=>setLang(b.dataset.lang).catch(()=>{}));
+// share modal
+$("#copyLink").onclick=()=>{ const i=$("#shareLink"); i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
+$("#modalDownload").onclick=()=>{ if(!modalData){return;} const b=$("#modalDownload"); b.textContent="Готовлю…"; TLNT.downloadResumePdf(modalData).then(()=>b.textContent="⬇ Скачать PDF").catch(e=>{b.textContent="Ошибка";console.error(e);}); };
 $("#modalClose").onclick=()=>$("#modalBg").classList.remove("show");
 $("#modalBg").onclick=e=>{ if(e.target===$("#modalBg")) $("#modalBg").classList.remove("show"); };
 
