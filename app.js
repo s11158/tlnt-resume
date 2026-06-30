@@ -67,8 +67,8 @@ const HEAD_MAP = [
  [/^(references?)(?![a-zа-яё])/i,"References"],
  [/^(рекомендации)(?![a-zа-яё])/i,"Рекомендации"],
  [/^(дополнительная информация)(?![a-zа-яё])/i,"Дополнительно"],
- [/^(контакты|контактная информация)(?![a-zа-яё])/i,"__CONTACTS__"],
- [/^(contacts?|contact (information|details))(?![a-zа-яё])/i,"__CONTACTS__"],
+ [/^(контакты|контактная информация|контактные данные|способы связаться|способы связи|связаться со мной)(?![a-zа-яё])/i,"__CONTACTS__"],
+ [/^(contacts?|contact (information|details)|how to (reach|contact)|ways to (reach|contact))(?![a-zа-яё])/i,"__CONTACTS__"],
 ];
 
 const EMAIL_RE = /[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i;
@@ -308,6 +308,19 @@ function looksLikeName(line){
   return letters>=t.replace(/\s/g,"").length*0.7;
 }
 
+// hh.ru experience: each job starts with a period line like "Ноябрь 2024 —" — add a blank line between jobs for readability
+function spaceExperienceEntries(body){
+  const startRe=/^[А-ЯЁA-Z][а-яёa-z]+\.?\s+\d{4}\s*[—–-]\s*$/;
+  const lines=body.split("\n"), out=[]; let seen=false;
+  for(const l of lines){
+    if(startRe.test(l.trim())){
+      if(seen && out.length && out[out.length-1].trim()!=="") out.push("");
+      seen=true;
+    }
+    out.push(l);
+  }
+  return out.join("\n");
+}
 function parseResume(text){
   const lines=text.split("\n");
   const res={name:"",head:"",email:"",phone:"",loc:"",link:"",personal:"",sections:[]};
@@ -330,10 +343,12 @@ function parseResume(text){
   const start=i;
   let pendingHead="";
   // name is valid only above any section header / personal-facts block (hh.ru exports often omit the name)
-  for(let k=start;k<Math.min(start+8,lines.length);k++){
+  for(let k=start;k<Math.min(start+12,lines.length);k++){
     const t=(lines[k]||"").trim();
     if(!t) continue;
-    if(isHeader(t)||PERSONAL_RE.test(t)) break;
+    const h=isHeader(t);
+    if(h==="__CONTACTS__"||h==="__PERSONAL__") continue;   // skip hh.ru "Способы связаться"/contact labels — the name may sit just after
+    if(h||PERSONAL_RE.test(t)) break;
     if(looksLikeName(t)){
       if(JOB_TITLE_RE.test(t) && !pendingHead){ pendingHead=t; continue; } // job title sitting above the name -> headline
       res.name=t; i=k+1; break;
@@ -400,6 +415,7 @@ function parseResume(text){
     const ds=res.sections.find(s=>/желаемая должность|desired position/i.test(s.title));
     if(ds){ const bl=ds.body.split("\n"); res.head=(bl.shift()||"").trim(); ds.body=bl.join("\n").trim(); }
   }
+  res.sections=res.sections.map(s=>/(опыт|experience)/i.test(s.title)?{title:s.title,body:spaceExperienceEntries(s.body)}:s);
   res.sections=res.sections.filter(s=>s.body.length>0);
   if(res.personal) res.personal=[...new Set(res.personal.split("\n").map(s=>s.trim()).filter(Boolean))].join("\n");
   return res;
