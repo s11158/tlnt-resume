@@ -193,7 +193,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
               <span class="ms-d">без данных кандидата — для отбора по характеристикам</span>
             </button>
           </div>
-          <div class="blind-note" id="blindNote">⚠️ В слепой анкете скрыты <b>имя, фото, телефон, email и ссылки</b>. Остаются должность, локация, опыт, образование и навыки. Применяется и к PDF, и к ссылке.</div>
+          <div class="blind-note" id="blindNote">⚠️ В слепой анкете скрыты <b>имя, фамилия, телефон, email и ссылки</b>. Остаются <b>фото</b>, должность, локация, опыт, образование и навыки. Применяется и к PDF, и к ссылке.</div>
           <div class="field"><label>Фото</label>
             <div class="photo-edit">
               <img id="photoThumb" alt="">
@@ -343,7 +343,7 @@ function collect(){
 function applyMode(d){
   if(mode!=="blind") return d;
   const c=JSON.parse(JSON.stringify(d));
-  c.name="Кандидат"; c.email=""; c.phone=""; c.link=""; c.photo="";
+  c.name="Кандидат"; c.email=""; c.phone=""; c.link="";   // photo is kept on purpose
   return c;
 }
 function setMode(m){
