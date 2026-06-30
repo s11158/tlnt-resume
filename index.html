@@ -69,6 +69,17 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 .sec-head input:focus{outline:none}
 .sec textarea{border:none;border-top:1px solid var(--line);border-radius:0;min-height:80px}
 .handle{cursor:grab;color:var(--beige-soft);font-size:15px;padding:0 4px}
+.mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:2px 0 8px}
+.ms-opt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;background:#FBF7F0;cursor:pointer;transition:.15s;font-family:inherit;width:100%}
+.ms-opt:hover{border-color:var(--beige)}
+.ms-opt.active{border-color:var(--graphite);background:#fff;box-shadow:0 4px 14px rgba(46,42,38,.08)}
+.ms-opt.active[data-m="blind"]{border-color:var(--beige-deep);background:#FBF3E7}
+.ms-t{font-weight:600;font-size:14px;color:var(--ink)}
+.ms-d{font-size:11.5px;color:var(--muted);line-height:1.35}
+.blind-note{display:none;font-size:12.5px;color:#8a6d3b;background:#FBF3E7;border:1px solid var(--beige-soft);border-radius:9px;padding:9px 12px;margin:0 0 8px;line-height:1.45}
+.blind-note.show{display:block}
+@media(max-width:520px){.mode-switch{grid-template-columns:1fr}}
+.lib-item .tag{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--beige-deep);background:#F3ECE0;border-radius:5px;padding:1px 6px;margin-left:6px}
 .photo-edit{display:flex;align-items:center;gap:12px}
 #photoThumb{width:54px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:none}
 #status{margin-top:14px;font-size:13px;color:var(--muted);min-height:18px}
@@ -172,6 +183,17 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
         <h2>2 · Данные кандидата</h2>
         <p class="muted" id="editorHint">Загрузите резюме слева — поля и фото заполнятся автоматически, ничего не теряется. Здесь можно всё поправить.</p>
         <div id="editorBody" style="display:none">
+          <div class="mode-switch" id="modeSwitch">
+            <button type="button" class="ms-opt active" data-m="full">
+              <span class="ms-t">👤 Полная анкета</span>
+              <span class="ms-d">имя, фото и контакты — для передачи заказчику</span>
+            </button>
+            <button type="button" class="ms-opt" data-m="blind">
+              <span class="ms-t">🕶 Слепая анкета</span>
+              <span class="ms-d">без данных кандидата — для отбора по характеристикам</span>
+            </button>
+          </div>
+          <div class="blind-note" id="blindNote">⚠️ В слепой анкете скрыты <b>имя, фото, телефон, email и ссылки</b>. Остаются должность, локация, опыт, образование и навыки. Применяется и к PDF, и к ссылке.</div>
           <div class="field"><label>Фото</label>
             <div class="photo-edit">
               <img id="photoThumb" alt="">
@@ -260,7 +282,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 const $=s=>document.querySelector(s);
 const status=m=>{ $("#status").textContent=m||""; };
 const cb=(m,p)=>{ status(m); const b=$("#bar"); b.classList.toggle("show",!!m); if(p!=null)$("#bar i").style.width=Math.round(p*100)+"%"; };
-let photoData="", logoData="", lastFiles=[];
+let photoData="", logoData="", lastFiles=[], mode="full";   // mode: "full" | "blind"
 
 /* short-link backend (Cloudflare Worker on cv.tlnt.ae). If unreachable, we fall back to a self-contained long link. */
 const CV_API = "https://cv.tlnt.ae/api/save";
@@ -293,7 +315,7 @@ function renderEditor(d){
   const wrap=$("#sections"); wrap.innerHTML="";
   (d.sections&&d.sections.length?d.sections:[{title:"Профиль",body:""}]).forEach(s=>addSection(s.title,s.body));
   ["#fName","#fHead","#fEmail","#fPhone","#fLoc","#fLink","#fPersonal"].forEach(s=>$(s).addEventListener("input",updatePreview));
-  updatePreview(); $("#downloadBtn").disabled=false; $("#saveBtn").disabled=false;
+  setMode("full"); $("#downloadBtn").disabled=false; $("#saveBtn").disabled=false;
 }
 function addSection(title,body){
   const el=document.createElement("div"); el.className="sec";
@@ -317,7 +339,20 @@ function collect(){
     loc:$("#fLoc").value.trim(), link:$("#fLink").value.trim(),
     personal:$("#fPersonal").value.replace(/\s+$/,""), photo:photoData, logo:logoData, sections:secs };
 }
-function updatePreview(){ TLNT.renderPreview($("#page"), collect()); }
+/* blind mode: strip everything that identifies the candidate, keep the professional profile */
+function applyMode(d){
+  if(mode!=="blind") return d;
+  const c=JSON.parse(JSON.stringify(d));
+  c.name="Кандидат"; c.email=""; c.phone=""; c.link=""; c.photo="";
+  return c;
+}
+function setMode(m){
+  mode=(m==="blind")?"blind":"full";
+  document.querySelectorAll(".ms-opt").forEach(b=>b.classList.toggle("active", b.dataset.m===mode));
+  $("#blindNote").classList.toggle("show", mode==="blind");
+  updatePreview();
+}
+function updatePreview(){ TLNT.renderPreview($("#page"), applyMode(collect())); }
 
 /* ---- pipeline ---- */
 async function handleFiles(files){
@@ -350,7 +385,7 @@ function renderLib(){
   if(!arr.length){ box.innerHTML='<div class="lib-empty">Пока пусто. Нажмите «Сохранить + ссылка».</div>'; return; }
   box.innerHTML=arr.map(it=>`<div class="lib-item" data-id="${it.id}">
       <img src="${it.thumb||''}" onerror="this.style.visibility='hidden'">
-      <div class="meta"><b>${(it.name||'Без имени').replace(/</g,'&lt;')}</b><small>${(it.role||'').replace(/</g,'&lt;')} · ${fmtDate(it.ts)}</small></div>
+      <div class="meta"><b>${(it.name||'Без имени').replace(/</g,'&lt;')}${it.mode==='blind'?'<span class="tag">слепая</span>':''}</b><small>${(it.role||'').replace(/</g,'&lt;')} · ${fmtDate(it.ts)}</small></div>
       <button class="btn-mini act-link">🔗</button><button class="btn-mini act-load">Открыть</button><button class="btn-mini act-del">✕</button>
     </div>`).join("");
   box.querySelectorAll(".lib-item").forEach(row=>{
@@ -364,7 +399,7 @@ function renderLib(){
   });
 }
 async function saveToLib(){
-  const d=collect();
+  const d=applyMode(collect());
   if(!d.name && !d.sections.length){ status("Нечего сохранять."); return; }
   cb("Сохраняю и создаю ссылку…",0.4);
   const data=JSON.parse(JSON.stringify(d));
@@ -381,7 +416,7 @@ async function saveToLib(){
   const url = shortUrl || shareUrl(payload);
   const thumb=data.photo||"";
   const id="r"+Date.now().toString(36)+Math.floor(performance.now()).toString(36);
-  const arr=libLoad(); arr.push({id, name:d.name, role:d.head, ts:Date.now(), url, payload, thumb, short:!!shortUrl, del});
+  const arr=libLoad(); arr.push({id, name:d.name, role:d.head, ts:Date.now(), url, payload, thumb, short:!!shortUrl, del, mode});
   libSave(arr); renderLib(); cb("");
   showShare(url, d.name, !!shortUrl);
 }
@@ -408,7 +443,8 @@ $("#parsePaste").onclick=()=>{ let t=$("#pasteArea").value; if(!t.trim()){status
   const p=TLNT.parseResume(TLNT.cleanText(t,$("#cleanToggle").checked)); renderEditor(p); status("Разобрано ✓"); };
 $("#cleanToggle").addEventListener("change",()=>{ if(lastFiles.length) handleFiles(lastFiles); });
 $("#addSec").onclick=()=>addSection("","");
-$("#downloadBtn").onclick=()=>{ status("Готовлю PDF…"); TLNT.downloadResumePdf(collect(),cb).then(()=>{cb("");status("Готово ✓ PDF сохранён.");}).catch(e=>{cb("");status("Ошибка PDF: "+e.message);}); };
+$("#downloadBtn").onclick=()=>{ status("Готовлю PDF…"); TLNT.downloadResumePdf(applyMode(collect()),cb).then(()=>{cb("");status("Готово ✓ PDF сохранён.");}).catch(e=>{cb("");status("Ошибка PDF: "+e.message);}); };
+document.querySelectorAll(".ms-opt").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 $("#saveBtn").onclick=()=>saveToLib().catch(e=>{cb("");status("Ошибка: "+e.message);});
 $("#photoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>setPhoto(r.result); r.readAsDataURL(f); });
 $("#photoRemove").onclick=()=>setPhoto("");
