@@ -69,16 +69,8 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 .sec-head input:focus{outline:none}
 .sec textarea{border:none;border-top:1px solid var(--line);border-radius:0;min-height:80px}
 .handle{cursor:grab;color:var(--beige-soft);font-size:15px;padding:0 4px}
-.mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:2px 0 8px}
-.ms-opt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;background:#FBF7F0;cursor:pointer;transition:.15s;font-family:inherit;width:100%}
-.ms-opt:hover{border-color:var(--beige)}
-.ms-opt.active{border-color:var(--graphite);background:#fff;box-shadow:0 4px 14px rgba(46,42,38,.08)}
-.ms-opt.active[data-m="blind"]{border-color:var(--beige-deep);background:#FBF3E7}
-.ms-t{font-weight:600;font-size:14px;color:var(--ink)}
-.ms-d{font-size:11.5px;color:var(--muted);line-height:1.35}
-.blind-note{display:none;font-size:12.5px;color:#8a6d3b;background:#FBF3E7;border:1px solid var(--beige-soft);border-radius:9px;padding:9px 12px;margin:0 0 8px;line-height:1.45}
+.blind-note{display:none;font-size:12.5px;color:#8a6d3b;background:#FBF3E7;border:1px solid var(--beige-soft);border-radius:9px;padding:9px 12px;margin:0 0 14px;line-height:1.45}
 .blind-note.show{display:block}
-@media(max-width:520px){.mode-switch{grid-template-columns:1fr}}
 .lib-item .tag{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--beige-deep);background:#F3ECE0;border-radius:5px;padding:1px 6px;margin-left:6px}
 .photo-edit{display:flex;align-items:center;gap:12px}
 #photoThumb{width:54px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:none}
@@ -127,12 +119,15 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 .linkbox{display:flex;gap:8px;margin-top:14px}
 .linkbox input{flex:1;border:1px solid var(--line);border-radius:9px;padding:11px;font-size:12px;font-family:'Roboto Mono',monospace;color:var(--ink)}
 .footer-note{margin-top:30px;text-align:center;font-size:12px;color:var(--muted)}
-.langbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:10px 14px;margin-bottom:22px}
-.langbar-label{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:500}
-.lang-opt{font-family:inherit;font-size:14px;font-weight:500;padding:8px 16px;border:1.5px solid var(--line);border-radius:9px;background:#FBF7F0;color:var(--muted);cursor:pointer;transition:.15s}
-.lang-opt:hover{border-color:var(--beige)}
-.lang-opt.active{background:var(--graphite);color:#fff;border-color:var(--graphite)}
-.lang-opt:disabled{opacity:.55;cursor:wait}
+.optbar{display:flex;gap:14px 26px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 16px;margin-bottom:14px}
+.optgroup{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.optlabel{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-right:2px}
+.pill{font-family:inherit;font-size:13.5px;font-weight:500;padding:8px 14px;border:1.5px solid var(--line);border-radius:9px;background:#FBF7F0;color:var(--muted);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px}
+.pill:hover{border-color:var(--beige)}
+.pill.active{background:var(--graphite);color:#fff;border-color:var(--graphite)}
+.pill.active[data-m="blind"]{background:var(--beige-deep);border-color:var(--beige-deep)}
+.pill b{font-size:10.5px;font-weight:700;letter-spacing:.5px;border:1px solid currentColor;border-radius:4px;padding:0 4px;opacity:.85}
+.pill:disabled{opacity:.55;cursor:wait}
 .langbar-hint{font-size:12px;color:var(--muted)}
 .modal .modal-actions{display:flex;gap:8px;margin-top:14px;align-items:center}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:42px;border:1px solid var(--line);border-radius:9px;background:#FBF7F0;cursor:pointer;font-size:18px;flex:0 0 auto}
@@ -150,12 +145,20 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
       <span class="lock">🔒 Обработка локально в браузере</span></div>
   </div>
 
-  <div class="langbar">
-    <span class="langbar-label">Язык резюме</span>
-    <button type="button" class="lang-opt active" data-lang="ru">🇷🇺 Русская версия</button>
-    <button type="button" class="lang-opt" data-lang="en">🇬🇧 English version</button>
+  <div class="optbar">
+    <div class="optgroup">
+      <span class="optlabel">Язык резюме</span>
+      <button type="button" class="pill lang-opt active" data-lang="ru"><b>RU</b> Русская версия</button>
+      <button type="button" class="pill lang-opt" data-lang="en"><b>EN</b> English version</button>
+    </div>
+    <div class="optgroup">
+      <span class="optlabel">Тип анкеты</span>
+      <button type="button" class="pill ms-opt active" data-m="full">👤 Полная анкета</button>
+      <button type="button" class="pill ms-opt" data-m="blind">🕶 Слепая · без данных</button>
+    </div>
     <span id="langStatus" class="langbar-hint"></span>
   </div>
+  <div class="blind-note" id="blindNote">⚠️ В слепой анкете скрыты <b>имя, фамилия, телефон, email и ссылки</b>. Остаются <b>фото</b>, должность, локация, опыт, образование и навыки. Применяется и к PDF, и к ссылке.</div>
 
   <div class="grid">
     <!-- LEFT -->
@@ -200,17 +203,6 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
         <h2>2 · Данные кандидата</h2>
         <p class="muted" id="editorHint">Загрузите резюме слева — поля и фото заполнятся автоматически, ничего не теряется. Здесь можно всё поправить.</p>
         <div id="editorBody" style="display:none">
-          <div class="mode-switch" id="modeSwitch">
-            <button type="button" class="ms-opt active" data-m="full">
-              <span class="ms-t">👤 Полная анкета</span>
-              <span class="ms-d">имя, фото и контакты — для передачи заказчику</span>
-            </button>
-            <button type="button" class="ms-opt" data-m="blind">
-              <span class="ms-t">🕶 Слепая анкета</span>
-              <span class="ms-d">без данных кандидата — для отбора по характеристикам</span>
-            </button>
-          </div>
-          <div class="blind-note" id="blindNote">⚠️ В слепой анкете скрыты <b>имя, фамилия, телефон, email и ссылки</b>. Остаются <b>фото</b>, должность, локация, опыт, образование и навыки. Применяется и к PDF, и к ссылке.</div>
           <div class="field"><label>Фото</label>
             <div class="photo-edit">
               <img id="photoThumb" alt="">
@@ -405,7 +397,7 @@ function setMode(m){
   $("#blindNote").classList.toggle("show", mode==="blind");
   updatePreview();
 }
-function updatePreview(){ TLNT.renderPreview($("#page"), applyMode(collect())); }
+function updatePreview(){ if($("#editorBody").style.display==="none") return; TLNT.renderPreview($("#page"), applyMode(collect())); }
 
 /* ---- pipeline ---- */
 async function handleFiles(files){
