@@ -1,3 +1,5 @@
 # Local test resumes — contain real candidate PII, never publish
 _samples/
 .claude/
+# Cloudflare Worker (deployed locally via wrangler; keeps account_id out of the public repo)
+cv-worker/

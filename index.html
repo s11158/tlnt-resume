@@ -203,7 +203,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
         <p class="muted">По умолчанию — текстовый логотип <b>TLNT.AE</b>. Можно загрузить свой PNG/SVG.</p>
         <div class="row">
           <label class="btn-ghost" style="position:relative;overflow:hidden">Загрузить логотип
-            <input type="file" id="logoInput" accept="image/png,image/jpeg,image/svg+xml" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+            <input type="file" id="logoInput" accept="image/png,image/jpeg" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
           <button class="btn-mini" id="logoReset" style="display:none">Вернуть текстовый</button>
           <span id="logoName" class="muted"></span>
         </div>
@@ -255,12 +255,16 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 <script>
 const $=s=>document.querySelector(s);
 const status=m=>{ $("#status").textContent=m||""; };
 const cb=(m,p)=>{ status(m); const b=$("#bar"); b.classList.toggle("show",!!m); if(p!=null)$("#bar i").style.width=Math.round(p*100)+"%"; };
 let photoData="", logoData="", lastFiles=[];
+
+/* short-link backend (Cloudflare Worker on cv.tlnt.ae). If unreachable, we fall back to a self-contained long link. */
+const CV_API = "https://cv.tlnt.ae/api/save";
+const CV_DELETE = "https://cv.tlnt.ae/api/delete";
 
 /* ---- downscale a dataURL (for compact share links) ---- */
 function shrinkDataUrl(dataUrl, maxW, q){
@@ -351,28 +355,41 @@ function renderLib(){
     </div>`).join("");
   box.querySelectorAll(".lib-item").forEach(row=>{
     const id=row.dataset.id; const it=libLoad().find(x=>x.id===id);
-    row.querySelector(".act-link").onclick=()=>showShare(shareUrl(it.payload), it.name);
+    row.querySelector(".act-link").onclick=()=>showShare(it.url || shareUrl(it.payload), it.name, !!it.short);
     row.querySelector(".act-load").onclick=()=>{ const d=TLNT.decodePayload(it.payload); if(d){ logoData=d.logo||""; setLogo(logoData, logoData?"свой логотип":""); renderEditor(d); window.scrollTo({top:0,behavior:"smooth"}); } };
-    row.querySelector(".act-del").onclick=()=>{ if(confirm("Удалить из базы?")){ libSave(libLoad().filter(x=>x.id!==id)); renderLib(); } };
+    row.querySelector(".act-del").onclick=async()=>{ if(confirm("Удалить из базы? Короткая ссылка перестанет открываться.")){
+      if(it.short && it.del && it.url){ try{ await fetch(CV_DELETE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug:it.url.split("/").pop(), del:it.del})}); }catch(e){} }
+      libSave(libLoad().filter(x=>x.id!==id)); renderLib();
+    } };
   });
 }
 async function saveToLib(){
   const d=collect();
   if(!d.name && !d.sections.length){ status("Нечего сохранять."); return; }
-  cb("Готовлю ссылку…",0.4);
+  cb("Сохраняю и создаю ссылку…",0.4);
   const data=JSON.parse(JSON.stringify(d));
-  if(data.photo) data.photo=await shrinkDataUrl(data.photo,210,0.7);   // keep links compact
-  const payload=TLNT.encodePayload(data);
+  if(data.photo) data.photo=await shrinkDataUrl(data.photo,210,0.7);   // keep payload compact
+  const payload=TLNT.encodePayload(data);                              // always keep for local re-open / fallback
+  // try the short-link backend; fall back to the self-contained long link
+  let shortUrl="", del="";
+  try{
+    const r=await fetch(CV_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    if(r.ok){ const jr=await r.json(); if(jr&&jr.url){ shortUrl=jr.url; del=jr.del||""; } }
+    else if(r.status===429) status("Дневной лимит коротких ссылок исчерпан — создана длинная ссылка.");
+    else if(r.status===413) status("Файл великоват для короткой ссылки — создана длинная ссылка.");
+  }catch(e){ /* offline or backend not deployed yet -> long link */ }
+  const url = shortUrl || shareUrl(payload);
   const thumb=data.photo||"";
   const id="r"+Date.now().toString(36)+Math.floor(performance.now()).toString(36);
-  const arr=libLoad(); arr.push({id, name:d.name, role:d.head, ts:Date.now(), payload, thumb});
+  const arr=libLoad(); arr.push({id, name:d.name, role:d.head, ts:Date.now(), url, payload, thumb, short:!!shortUrl, del});
   libSave(arr); renderLib(); cb("");
-  showShare(shareUrl(payload), d.name);
+  showShare(url, d.name, !!shortUrl);
 }
-function showShare(url,name){
+function showShare(url,name,isShort){
   $("#shareLink").value=url; $("#openLink").href=url; $("#modalTitle").textContent="Ссылка: "+(name||"резюме");
   $("#modalBg").classList.add("show");
-  if(url.length>6000) $("#modalDesc").textContent="Ссылка длинная (с фото). Открывается в любом браузере; для очень длинных лучше отправлять через мессенджер, а не вставлять в адресную строку вручную.";
+  if(isShort) $("#modalDesc").textContent="Короткая ссылка на резюме — открывается в любом браузере, можно скачать PDF.";
+  else if(url.length>6000) $("#modalDesc").textContent="Ссылка длинная (с фото). Открывается в любом браузере; лучше отправлять через мессенджер, а не вставлять в адресную строку вручную.";
   else $("#modalDesc").textContent="Ссылка содержит всё резюме целиком — открывается в любом браузере, сервер не нужен.";
 }
 

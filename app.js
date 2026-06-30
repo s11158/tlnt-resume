@@ -415,10 +415,12 @@ function bulletize(body){
     return `<div>${escapeHtml(t)}</div>`;
   }).join("");
 }
+function safeImg(v){ return (typeof v==="string" && /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(v)) ? v : ""; }
 function renderPreview(el, d){
   const contacts=[d.email,d.phone,d.loc,d.link].filter(Boolean);
-  const logoHtml = d.logo ? `<img class="p-logo-img" src="${d.logo}">` : `<div class="p-logo">TLNT<span class="dot">.</span>AE</div>`;
-  const photoHtml = d.photo ? `<img class="p-photo" src="${d.photo}">` : "";
+  const logo=safeImg(d.logo), photo=safeImg(d.photo);
+  const logoHtml = logo ? `<img class="p-logo-img" src="${logo}">` : `<div class="p-logo">TLNT<span class="dot">.</span>AE</div>`;
+  const photoHtml = photo ? `<img class="p-photo" src="${photo}">` : "";
   el.innerHTML=`
     <div class="p-mast">${logoHtml}<div class="p-tag">Talent Agency<br>United Arab Emirates</div></div>
     <div class="p-headrow">
@@ -475,14 +477,15 @@ async function buildResumeDoc(d, cb){
 
   // ---- header row: name/contacts left, photo right ----
   let photoW=0, photoH=0, photoX=0;
-  if(d.photo){
+  const photoSafe=safeImg(d.photo);
+  if(photoSafe){
     try{
-      const props=doc.getImageProperties(d.photo);
+      const props=doc.getImageProperties(photoSafe);
       const boxW=92, boxH=118;
       const r=Math.min(boxW/props.width, boxH/props.height);
       photoW=props.width*r; photoH=props.height*r;
       photoX=W-M-photoW;
-      doc.addImage(d.photo,"JPEG",photoX,y,photoW,photoH);
+      doc.addImage(photoSafe,"JPEG",photoX,y,photoW,photoH);
     }catch(e){ photoW=0; }
   }
   const textW = photoW? CW-photoW-16 : CW;
