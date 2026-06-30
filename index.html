@@ -168,18 +168,17 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
   </div>
   <div class="blind-note" id="blindNote">⚠️ В слепой анкете скрыты <b>имя, фамилия, телефон, email и ссылки</b>. Остаются <b>фото</b>, должность, локация, опыт, образование и навыки. Применяется и к PDF, и к ссылке.</div>
 
-  <div class="sharebar" id="shareBar" style="display:none">
+  <div class="sharebar" id="shareBar">
     <div class="sharebar-row">
       <span class="optlabel">Ссылка на резюме</span>
       <div class="linkfield">
-        <input id="shareLink" readonly>
+        <input id="shareLink" readonly placeholder="Нажмите «Сохранить + ссылка» — здесь появится короткая ссылка">
         <button class="copy-inside" id="copyLink" title="Скопировать ссылку" aria-label="Скопировать ссылку">📋</button>
       </div>
       <button class="btn-primary" id="modalDownload" style="padding:9px 14px;white-space:nowrap">⬇ Скачать PDF</button>
       <a id="openLink" class="btn-ghost" target="_blank" rel="noopener" style="padding:8px 12px;white-space:nowrap">Открыть ↗</a>
-      <button class="btn-mini" id="shareClose" title="Скрыть" style="padding:7px 10px">✕</button>
     </div>
-    <div class="muted" id="modalDesc" style="margin-top:7px"></div>
+    <div class="muted" id="modalDesc" style="margin-top:7px">Короткую ссылку создаёт кнопка «🔗 Сохранить + ссылка». «Скачать PDF» работает в любой момент.</div>
   </div>
 
   <div class="grid">
@@ -321,6 +320,7 @@ function renderEditor(d){
   fillEditor(d);
   setLangUI();
   setMode("full"); $("#downloadBtn").disabled=false; $("#saveBtn").disabled=false;
+  resetShare();
   langCache[lang]=collect();
 }
 function addSection(title,body){
@@ -467,9 +467,10 @@ function showShare(url,name,isShort){
   if(isShort) $("#modalDesc").textContent="Короткая ссылка на резюме — открывается в любом браузере, можно скачать PDF.";
   else if(url.length>6000) $("#modalDesc").textContent="Длинная ссылка (с фото). Открывается в любом браузере; лучше отправлять через мессенджер.";
   else $("#modalDesc").textContent="Ссылка содержит всё резюме целиком — открывается в любом браузере.";
-  $("#shareBar").style.display="block";
   $("#shareBar").scrollIntoView({behavior:"smooth",block:"nearest"});
 }
+function resetShare(){ $("#shareLink").value=""; $("#openLink").removeAttribute("href"); modalData=null;
+  $("#modalDesc").textContent="Короткую ссылку создаёт кнопка «🔗 Сохранить + ссылка». «Скачать PDF» работает в любой момент."; }
 
 /* ---- wiring ---- */
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
@@ -496,9 +497,10 @@ $("#photoRemove").onclick=()=>setPhoto("");
 // language switch
 document.querySelectorAll(".lang-opt").forEach(b=>b.onclick=()=>setLang(b.dataset.lang).catch(()=>{}));
 // share modal
-$("#copyLink").onclick=()=>{ const i=$("#shareLink"); i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
-$("#modalDownload").onclick=()=>{ if(!modalData){return;} const b=$("#modalDownload"); b.textContent="Готовлю…"; TLNT.downloadResumePdf(modalData).then(()=>b.textContent="⬇ Скачать PDF").catch(e=>{b.textContent="Ошибка";console.error(e);}); };
-$("#shareClose").onclick=()=>$("#shareBar").style.display="none";
+$("#copyLink").onclick=()=>{ const i=$("#shareLink"); if(!i.value){ status("Сначала создайте ссылку кнопкой «🔗 Сохранить + ссылка»."); return; } i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
+$("#modalDownload").onclick=()=>{ const d = modalData || ($("#editorBody").style.display!=="none" ? applyMode(collect()) : null);
+  if(!d || (!d.name && !(d.sections&&d.sections.length))){ status("Сначала загрузите резюме."); return; }
+  const b=$("#modalDownload"); b.textContent="Готовлю…"; TLNT.downloadResumePdf(d).then(()=>b.textContent="⬇ Скачать PDF").catch(e=>{b.textContent="Ошибка";console.error(e);}); };
 
 renderLib();
 TLNT.ensureFonts().catch(()=>{});
