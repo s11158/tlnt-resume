@@ -4,15 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TLNT.AE · Resume Formatter</title>
-<meta name="description" content="Превращает любое резюме (PDF, Word, TXT, фото) в единый брендированный PDF TLNT.AE. Сохраняет фото и все данные, хранит базу и выдаёт ссылку." />
+<meta name="description" content="Превращает любое резюме (PDF, Word, TXT, фото) в единый брендированный PDF TLNT.AE: сохраняет фото и данные, переводит RU/EN, полная и слепая анкета, короткая ссылка." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --graphite:#2E2A26;--ink:#3A352F;--muted:#7A7065;--beige:#B08D57;--beige-deep:#9A7842;
+  --graphite:#3f3a33;--ink:#4a443c;--muted:#7c7468;--beige:#B08D57;--beige-deep:#9A7842;
   --beige-soft:#D9C4A3;--line:#E7DECF;--bg:#F3EDE3;--bg2:#ECE3D5;--card:#FFFFFF;
-  --shadow:0 12px 40px rgba(46,42,38,.10);--radius:14px;
+  --shadow:0 12px 40px rgba(63,58,51,.12);--radius:14px;
 }
 *{box-sizing:border-box}html,body{margin:0;padding:0}
 body{font-family:'Roboto',system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);
@@ -56,7 +56,7 @@ textarea.paste:focus{outline:none;border-color:var(--beige)}
 .toggle input{width:18px;height:18px;accent-color:var(--beige-deep)}
 button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-size:14px;font-weight:500;transition:.15s}
 .btn-primary{background:var(--graphite);color:#fff;padding:13px 20px}
-.btn-primary:hover{background:#1f1c19}.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary:hover{background:#2f2b25}.btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-accent{background:var(--beige-deep);color:#fff;padding:13px 20px}
 .btn-accent:hover{background:#876a39}.btn-accent:disabled{opacity:.5;cursor:not-allowed}
 .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);padding:11px 16px}
@@ -83,7 +83,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 .preview-shell{position:sticky;top:18px}
 .preview-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap}
 .preview-toolbar .t{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--beige-deep);font-weight:700}
-.page{background:#fff;color:#2E2A26;aspect-ratio:1/1.414;width:100%;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;padding:6% 6.5%;font-size:clamp(7px,1.1vw,11px);position:relative}
+.page{background:#fff;color:#3f3a33;aspect-ratio:1/1.414;width:100%;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;padding:6% 6.5%;font-size:clamp(7px,1.1vw,11px);position:relative}
 .p-mast{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.4px solid var(--beige);padding-bottom:2.6%}
 .p-logo{font-weight:700;letter-spacing:.1em;font-size:1.7em;color:var(--graphite)}.p-logo .dot{color:var(--beige)}
 .p-tag{font-size:.68em;letter-spacing:.26em;text-transform:uppercase;color:var(--beige-deep);text-align:right;line-height:1.5;margin-top:.3em}
@@ -172,13 +172,13 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
     <div class="sharebar-row">
       <span class="optlabel">Ссылка на резюме</span>
       <div class="linkfield">
-        <input id="shareLink" readonly placeholder="Нажмите «Сохранить + ссылка» — здесь появится короткая ссылка">
+        <input id="shareLink" readonly placeholder="Ссылка появится здесь автоматически, как только резюме готово…">
         <button class="copy-inside" id="copyLink" title="Скопировать ссылку" aria-label="Скопировать ссылку">📋</button>
       </div>
       <button class="btn-primary" id="modalDownload" style="padding:9px 14px;white-space:nowrap">⬇ Скачать PDF</button>
       <a id="openLink" class="btn-ghost" target="_blank" rel="noopener" style="padding:8px 12px;white-space:nowrap">Открыть ↗</a>
     </div>
-    <div class="muted" id="modalDesc" style="margin-top:7px">Короткую ссылку создаёт кнопка «🔗 Сохранить + ссылка». «Скачать PDF» работает в любой момент.</div>
+    <div class="muted" id="modalDesc" style="margin-top:7px">Короткая ссылка создаётся автоматически и обновляется при изменениях. «Скачать PDF» работает в любой момент.</div>
   </div>
 
   <div class="grid">
@@ -264,7 +264,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 <script>
 const $=s=>document.querySelector(s);
 const status=m=>{ $("#status").textContent=m||""; };
@@ -446,7 +446,7 @@ function showShare(url,name,isShort){
   $("#shareBar").scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 function resetShare(){ $("#shareLink").value=""; $("#openLink").removeAttribute("href"); modalData=null;
-  $("#modalDesc").textContent="Короткую ссылку создаёт кнопка «🔗 Сохранить + ссылка». «Скачать PDF» работает в любой момент."; }
+  $("#modalDesc").textContent="Короткая ссылка создаётся автоматически и обновляется при изменениях. «Скачать PDF» работает в любой момент."; }
 
 /* ---- wiring ---- */
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
@@ -470,7 +470,7 @@ $("#photoRemove").onclick=()=>setPhoto("");
 // language switch
 document.querySelectorAll(".lang-opt").forEach(b=>b.onclick=()=>setLang(b.dataset.lang).catch(()=>{}));
 // share modal
-$("#copyLink").onclick=()=>{ const i=$("#shareLink"); if(!i.value){ status("Сначала создайте ссылку кнопкой «🔗 Сохранить + ссылка»."); return; } i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
+$("#copyLink").onclick=()=>{ const i=$("#shareLink"); if(!i.value){ status("Ссылка ещё создаётся — секунду…"); return; } i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
 $("#modalDownload").onclick=()=>{ const d = modalData || ($("#editorBody").style.display!=="none" ? applyMode(collect()) : null);
   if(!d || (!d.name && !(d.sections&&d.sections.length))){ status("Сначала загрузите резюме."); return; }
   const b=$("#modalDownload"); b.textContent="Готовлю…"; TLNT.downloadResumePdf(d).then(()=>b.textContent="⬇ Скачать PDF").catch(e=>{b.textContent="Ошибка";console.error(e);}); };

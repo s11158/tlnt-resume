@@ -466,7 +466,7 @@ async function buildResumeDoc(d, cb){
 
   const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
   const M=48, CW=W-M*2, BOTTOM=H-50;
-  const GRAPH=[46,42,38], INK=[58,53,47], MUT=[122,112,101], BEI=[176,141,87], BEID=[154,120,66], LINE=[231,222,207];
+  const GRAPH=[63,58,51], INK=[74,68,60], MUT=[124,116,104], BEI=[176,141,87], BEID=[154,120,66], LINE=[231,222,207];
   let y=0;
   const setC=c=>doc.setTextColor(c[0],c[1],c[2]);
 
