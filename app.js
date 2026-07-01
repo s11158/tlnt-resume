@@ -179,22 +179,56 @@ async function extractPdf(file, cb){
 }
 
 /* column-aware line reconstruction: keeps left date-column with its block */
+const DATE_L=/(^|[\s(])(янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[а-яёa-z.]*\s*\d{4}|^\s*\d{4}\s*[—–\-]|настоящее время|по\s+настоящее|present|^\s*\d+\s*(год|года|лет|month|year|мес)|^\s*(месяц[а-яё]*|года?|лет|год|months?|years?)\s*$/i;
+const PERIOD_START=/(\d{4}\s*[—–\-]\s*$)|^((янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[а-яёa-z.]*\s*\d{4})|^\s*(19|20)\d{2}(\s*[—–\-].*)?$/i;
+function joinRowItems(arr){
+  return arr.slice().sort((a,b)=>a.x-b.x).map(o=>o.s).join(" ").replace(/\s+/g," ").replace(/\s+([,.;:%)»])/g,"$1").replace(/([«(])\s+/g,"$1").trim();
+}
+// Column-aware line reconstruction: de-interleaves hh.ru's left meta column (period/degree) from the right
+// content column, so each entry reads "period / company / position / description" instead of a scrambled mix.
 function reconstructLines(items, pageW){
-  const rows={};
-  items.forEach(it=>{
-    if(!it.str) return;
-    const y=Math.round(it.transform[5]);
-    (rows[y]=rows[y]||[]).push({x:it.transform[4], s:it.str});
-  });
-  const ys=Object.keys(rows).map(Number).sort((a,b)=>b-a);
-  const lines=[];
-  ys.forEach(y=>{
-    const parts=rows[y].sort((a,b)=>a.x-b.x);
-    // if a row has a left-column token and a far-right token, join with a separator
-    const txt=parts.map(o=>o.s).join(" ").replace(/\s+/g," ").trim();
-    if(txt) lines.push(txt);
-  });
-  return lines;
+  const its=[];
+  items.forEach(it=>{ if(it.str && it.str.trim()) its.push({x:it.transform[4], y:it.transform[5], w:it.width||0, s:it.str}); });
+  if(!its.length) return [];
+  its.sort((a,b)=> b.y-a.y || a.x-b.x);
+  const rows=[]; let cur=null;
+  its.forEach(it=>{ if(!cur || Math.abs(cur.y-it.y)>3.2){ cur={y:it.y, its:[]}; rows.push(cur); } cur.its.push(it); });
+
+  // detect the right-column left margin RX
+  const h={};
+  rows.forEach(r=>{ const minx=Math.min.apply(null,r.its.map(i=>i.x)); if(minx>90 && minx<330){ const b=Math.round(minx/5)*5; h[b]=(h[b]||0)+1; } });
+  let RX=0, bc=0; for(const k in h){ if(h[k]>bc){ bc=h[k]; RX=+k; } }
+  const leftCount = RX ? its.filter(i=>(i.x+i.w)<RX-8).length : 0;
+  if(!RX || bc<4 || leftCount<5) return rows.map(r=>joinRowItems(r.its)).filter(Boolean);   // single column
+
+  const out=[]; let e=null;
+  const flush=()=>{ if(!e) return; out.push("");
+    let m=e.meta.join(" ").replace(/\s*[—–\-]\s*$/,"").replace(/\s{2,}/g," ").trim();
+    m=m.replace(/\s(\d{1,2}\s+(?:год|года|лет|месяц[а-яё]*).*)$/i," · $1");   // period · duration
+    if(m) out.push(m); e.content.forEach(c=>out.push(c)); e=null; };
+  for(const r of rows){
+    const parts=r.its.slice().sort((a,b)=>a.x-b.x);
+    // largest horizontal gap in the row
+    let gi=-1, gmax=0;
+    for(let i=0;i<parts.length-1;i++){ const g=parts[i+1].x-(parts[i].x+parts[i].w); if(g>gmax){ gmax=g; gi=i; } }
+    const splitX = gi>=0 ? parts[gi+1].x : Infinity;
+    const twoCol = gi>=0 && gmax>14 && splitX>=RX-26 && splitX<=RX+26 && parts[0].x<RX-12;
+    if(twoCol){
+      const meta=joinRowItems(parts.slice(0,gi+1)), content=joinRowItems(parts.slice(gi+1));
+      if(PERIOD_START.test(meta)){ flush(); e={meta:[meta], content: content?[content]:[]}; }
+      else if(e){ e.meta.push(meta); if(content) e.content.push(content); }
+      else { out.push(meta); if(content) out.push(content); }
+    } else {
+      const line=joinRowItems(parts);
+      const rightOnly = parts.every(p=>p.x>=RX-8);
+      const leftOnly  = parts.every(p=>(p.x+p.w)<RX-6);
+      if(rightOnly){ if(e) e.content.push(line); else out.push(line); }
+      else if(leftOnly && e && !isHeader(line) && (DATE_L.test(line)||line.length<26)){ e.meta.push(line); }
+      else { flush(); out.push(line); }   // heading or full-width prose
+    }
+  }
+  flush();
+  return out.filter((l,i,a)=> !(l===""&&(a[i-1]===""||i===0)) );
 }
 
 function imgToDataUrl(im, maxW){
@@ -413,7 +447,8 @@ function parseResume(text){
   // hh.ru "Желаемая должность" -> use its first line as the headline (no duplication)
   if(!res.head){
     const ds=res.sections.find(s=>/желаемая должность|desired position/i.test(s.title));
-    if(ds){ const bl=ds.body.split("\n"); res.head=(bl.shift()||"").trim(); ds.body=bl.join("\n").trim(); }
+    if(ds){ const bl=ds.body.split("\n"); res.head=(bl.shift()||"").trim(); ds.body=bl.join("\n").trim();
+      res.head=res.head.replace(/\s+\d[\d\s]{3,}\s*(₽|руб|\$|€|aed|usd|eur|dirham|дирхам).*$/i,"").replace(/\s*(на руки|до вычета налогов).*$/i,"").trim(); }
   }
   res.sections=res.sections.map(s=>/(опыт|experience)/i.test(s.title)?{title:s.title,body:spaceExperienceEntries(s.body)}:s);
   res.sections=res.sections.filter(s=>s.body.length>0);
