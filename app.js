@@ -1,5 +1,5 @@
 /* ============================================================
-   TLNT.AE Resume Formatter — shared engine
+   TLNT.AE Resume Formatter - shared engine
    Used by index.html (editor) and view.html (shared link view)
    ============================================================ */
 (function(global){
@@ -82,7 +82,7 @@ const JOB_TITLE_RE = /\b(director|manager|engineer|developer|designer|analyst|co
 const COUNTRY_RE=/(?<![\p{L}])(uae|united arab emirates|emirates|usa|u\.s\.a\.|united states|uk|united kingdom|england|scotland|ireland|canada|germany|deutschland|france|italy|italia|spain|españa|portugal|poland|polska|netherlands|belgium|sweden|norway|denmark|finland|switzerland|austria|greece|turkey|türkiye|egypt|saudi arabia|saudi|qatar|kuwait|bahrain|oman|jordan|lebanon|morocco|nigeria|kenya|ghana|south africa|japan|china|hong kong|singapore|malaysia|indonesia|thailand|vietnam|philippines|india|pakistan|bangladesh|australia|new zealand|brazil|brasil|argentina|chile|colombia|mexico|méxico|россия|russia|казахстан|kazakhstan|украина|ukraine|беларусь|belarus|узбекистан|армения|грузия|georgia|azerbaijan|азербайджан|оаэ|эмираты|катар|саудовская аравия|кувейт|бахрейн|оман|египет|турция|германия|франция|испания|италия|польша|нидерланды|швейцария|сербия)(?![\p{L}])/iu;
 const US_STATE_RE=/,\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/;
 const CITY_RE=/(?<![\p{L}])(dubai|abu dhabi|sharjah|ajman|doha|riyadh|jeddah|kuwait city|manama|muscat|дубай|абу[\s-]?даби|шарджа|аджман|доха|эр[\s-]?рияд|джидда|манама|маскат|london|manchester|new york|san francisco|los angeles|chicago|boston|seattle|austin|houston|dallas|miami|toronto|vancouver|berlin|munich|hamburg|paris|madrid|barcelona|rome|milan|amsterdam|brussels|zurich|geneva|vienna|warsaw|prague|stockholm|oslo|copenhagen|helsinki|istanbul|cairo|lagos|nairobi|cape town|johannesburg|tokyo|osaka|beijing|shanghai|hong kong|singapore|kuala lumpur|bangkok|jakarta|mumbai|delhi|bangalore|bengaluru|hyderabad|sydney|melbourne|sao paulo|são paulo|mexico city|москва|moscow|санкт\s*-?\s*петербург|петербург|st\.? petersburg|екатеринбург|новосибирск|казань|нижний новгород|самара|краснодар|алматы|астана|almaty|astana|tashkent|ташкент|baku|баку|tbilisi|тбилиси|минск|minsk|kyiv|kiev|киев)(?![\p{L}])/iu;
-const LOC_PREFIX_RE=/^\s*(location|address|based in|city|town|город(?:\s+проживания)?|адрес|местоположение|проживает|residence)\s*[:\-–]\s*/i;
+const LOC_PREFIX_RE=/^\s*(location|address|based in|city|town|город(?:\s+проживания)?|адрес|местоположение|проживает|residence)\s*[:\-\u2013]\s*/i;
 function looksLikeLocationChunk(s){
   s=(s||"").trim();
   if(!s||s.length>44||s.split(/\s+/).length>6) return false;
@@ -184,16 +184,104 @@ async function extractPdf(file, cb){
 }
 
 /* column-aware line reconstruction: keeps left date-column with its block */
-const DATE_L=/(^|[\s(])(янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[а-яёa-z.]*\s*\d{4}|^\s*\d{4}\s*[—–\-]|настоящее время|по\s+настоящее|present|^\s*\d+\s*(год|года|лет|month|year|мес)|^\s*(месяц[а-яё]*|года?|лет|год|months?|years?)\s*$/i;
-const PERIOD_START=/(\d{4}\s*[—–\-]\s*$)|^((янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[а-яёa-z.]*\s*\d{4})|^\s*(19|20)\d{2}(\s*[—–\-].*)?$/i;
+const DATE_L=/(^|[\s(])(янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[а-яёa-z.]*\s*\d{4}|^\s*\d{4}\s*[\u2014\u2013\-]|настоящее время|по\s+настоящее|present|^\s*\d+\s*(год|года|лет|month|year|мес)|^\s*(месяц[а-яё]*|года?|лет|год|months?|years?)\s*$/i;
+const PERIOD_START=/(\d{4}\s*[\u2014\u2013\-]\s*$)|^((янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[а-яёa-z.]*\s*\d{4})|^\s*(19|20)\d{2}(\s*[\u2014\u2013\-].*)?$/i;
+/* ---- letter-spaced (tracked) text: Canva/designer PDFs, hand-spaced Word headings ---- */
+const TRK_CH=/^[\p{L}\p{N}]$/u;
+// "O G" / "- J a n" / "2 0 2 5 -" -> "OG" / "- Jan" / "2025 -": glue letters/digits, keep spaces next to punctuation.
+// null when s is not a run of single characters split by single spaces.
+function glueSpaced(s){
+  const toks=s.trim().split(" ");
+  if(toks.length<2 || toks.some(t=>t.length!==1)) return null;
+  let w=toks[0];
+  for(let i=1;i<toks.length;i++) w+=(TRK_CH.test(toks[i-1])&&TRK_CH.test(toks[i])?"":" ")+toks[i];
+  return w;
+}
+// "C u s t o m e r" / "З а к а з ч и к" -> "Customer" / "Заказчик". Only a chunk made entirely of single characters
+// with 3+ letters/digits is touched, so "Hepatitis A B C" stays; 2+ spaces are word breaks.
+function collapseTracked(s){
+  if(!s || !/\S \S/.test(s)) return s;
+  return s.split(/(\s{2,})/).map(ch=>{
+    const w=glueSpaced(ch);
+    if(w===null || (ch.match(/[\p{L}\p{N}]/gu)||[]).length<3) return ch;
+    return ch.match(/^\s*/)[0]+splitCamel(w)+ch.match(/\s*$/)[0];
+  }).join("");
+}
+// word breaks lost inside one spaced run come back at lower->Upper joints: "CustomerService" -> "Customer Service";
+// short prefixes stay glued (McDonald, DeVito, MacArthur)
+function splitCamel(w){
+  return w.replace(/(\p{Lu}?\p{Ll}{2,})(?=\p{Lu}\p{Ll})/gu, m=>/^(mac|van|von|del|der|dos|das)$/i.test(m)?m:m+" ");
+}
+// Separator between neighbouring items comes from geometry instead of a blind " ":
+//  - items that touch (gap < 0.1em) are one word cut by the PDF producer: "D"+"irected", "202"+"5", "high"+"-"+"performing";
+//  - a run of letter-spaced pieces (single glyphs, caps pairs pdf.js merged by kerning "LT", spaced chunks "S O C I O L")
+//    glues together, and only a clearly wider gap inside the run is a word break: "N","A","T",... -> "NATALIA SCULLY".
+const GLUE_L=/[\p{L}\p{N}\p{M}\p{Pd}+@\/_]$/u, GLUE_R=/^[\p{L}\p{N}\p{M}\p{Pd}@\/_]/u, WORDY=/[\p{L}\p{N}\p{M}]/u;
+function trackKind(s){
+  const t=s.trim();
+  if(TRK_CH.test(t)) return "g";                                                     // one glyph
+  if(/^(?=.*\p{Lu})[\p{Lu}\p{N}] ?[\p{Lu}\p{N}]$/u.test(t)) return "k";             // kerned caps pair: "LT", "A T"
+  if(glueSpaced(t)!==null && (t.match(/[\p{L}\p{N}]/gu)||[]).length>=2) return "s"; // spaced chunk: "S O C I O L", "O G"
+  return "";
+}
+function glueRowItems(arr){
+  const its=arr.slice().sort((a,b)=>a.x-b.x).map(o=>Object.assign({},o,{k:trackKind(o.s)}));
+  const n=its.length; if(!n) return "";
+  const em=o=>o.fs||10, gap=i=>its[i].x-(its[i-1].x+its[i-1].w);
+  const sep=new Array(n).fill(" ");
+  for(let i=1;i<n;i++){
+    const a=its[i-1].s, b=its[i].s, e=Math.max(em(its[i-1]),em(its[i])), g=gap(i);
+    if(/\s$/.test(a) || /^\s/.test(b) || g>=0.1*e || g<-0.3*e) continue;
+    if(i===1 && /^[\p{Pd}•*·▪‣]$/u.test(a)) continue;                              // a leading "-" stays a list marker
+    const la=a.slice(-1), fb=b.charAt(0);
+    // glue only word-ish joints with a letter/digit on at least one side ("|"+"2010" keeps its space)
+    if(GLUE_L.test(la) && GLUE_R.test(fb) && (WORDY.test(la)||WORDY.test(fb)) && !(la==="+" && !/\d/.test(fb))) sep[i]="";
+  }
+  // typical space between ordinary words of this row (em): a lowercase "run" spaced like that is plain text ("в 2 х раза")
+  const plain=[];
+  for(let i=1;i<n;i++){ const g=gap(i)/em(its[i]); if((!its[i-1].k || !its[i].k) && g>0.1 && g<1) plain.push(g); }
+  plain.sort((x,y)=>x-y);
+  const plainGap=plain.length ? plain[plain.length>>1] : 0;
+  for(let i=0;i<n;){
+    if(!its[i].k){ its[i].s=collapseTracked(its[i].s); i++; continue; }
+    const e=em(its[i]);
+    let j=i;
+    while(j+1<n && its[j+1].k && gap(j+1)<e && gap(j+1)>-0.3*e && Math.abs(em(its[j+1])-e)<0.2*e) j++;
+    const run=its.slice(i,j+1), txt=run.map(o=>o.s).join(""), cnt=c=>run.filter(o=>o.k===c).length, gs=[];
+    for(let k=i+1;k<=j;k++) gs.push(gap(k));
+    const q=Math.max(0, gs.length ? gs.slice().sort((x,y)=>x-y)[(gs.length-1)>>2] : 0);   // letter gap = lower quartile
+    let ok=(txt.match(/[\p{L}\p{N}]/gu)||[]).length>=3 && (run.length>=3 || (run.length===2 && cnt("s")>0))
+           && cnt("g")+cnt("s")>=Math.max(2,cnt("k"));
+    if(ok && /\p{Ll}/u.test(txt)) ok=!cnt("k") && !(plainGap && q/e>=0.75*plainGap);
+    if(ok){
+      run.forEach(o=>{ if(o.k!=="g") o.s=glueSpaced(o.s)||o.s.replace(/ /g,""); });
+      const brk=Math.min(0.55*e, q+Math.max(0.15*e, 0.6*q));      // anything wider than 0.55em is a word break anyway
+      for(let k=i+1;k<=j;k++) sep[k]= gap(k)>brk ? " " : "";
+    } else run.forEach(o=>{ o.s=collapseTracked(o.s); });
+    i=j+1;
+  }
+  let s=its[0].s; for(let i=1;i<n;i++) s+=sep[i]+its[i].s;
+  return s;
+}
 function joinRowItems(arr){
-  return arr.slice().sort((a,b)=>a.x-b.x).map(o=>o.s).join(" ").replace(/\s+/g," ").replace(/\s+([,.;:%)»])/g,"$1").replace(/([«(])\s+/g,"$1").trim();
+  return glueRowItems(arr).replace(/\s+/g," ").replace(/\s+([,.;:%)\u00bb])/g,"$1").replace(/([\u00ab(])\s+/g,"$1").trim();
+}
+// A row with a huge horizontal gap is two separate texts that share a baseline (name on the left, city on the right
+// of a designer header; left sidebar + right column): split it so they do not end up as one line.
+function splitRowAtGaps(arr){
+  const its=arr.slice().sort((a,b)=>a.x-b.x), parts=[[its[0]]];
+  for(let i=1;i<its.length;i++){
+    const a=its[i-1], b=its[i], g=b.x-(a.x+a.w), e=Math.max(a.fs||10,b.fs||10);
+    if(a.w>0 && b.w>0 && g>Math.max(3*e,24)) parts.push([b]); else parts[parts.length-1].push(b);
+  }
+  return parts;
 }
 // Column-aware line reconstruction: de-interleaves hh.ru's left meta column (period/degree) from the right
 // content column, so each entry reads "period / company / position / description" instead of a scrambled mix.
 function reconstructLines(items, pageW){
   const its=[];
-  items.forEach(it=>{ if(it.str && it.str.trim()) its.push({x:it.transform[4], y:it.transform[5], w:it.width||0, s:it.str}); });
+  items.forEach(it=>{ if(it.str && it.str.trim()) its.push({x:it.transform[4], y:it.transform[5], w:it.width||0, s:it.str,
+    fs:it.height||Math.hypot(it.transform[2],it.transform[3])||0}); });
   if(!its.length) return [];
   its.sort((a,b)=> b.y-a.y || a.x-b.x);
   const rows=[]; let cur=null;
@@ -204,11 +292,12 @@ function reconstructLines(items, pageW){
   rows.forEach(r=>{ const minx=Math.min.apply(null,r.its.map(i=>i.x)); if(minx>90 && minx<330){ const b=Math.round(minx/5)*5; h[b]=(h[b]||0)+1; } });
   let RX=0, bc=0; for(const k in h){ if(h[k]>bc){ bc=h[k]; RX=+k; } }
   const leftCount = RX ? its.filter(i=>(i.x+i.w)<RX-8).length : 0;
-  if(!RX || bc<4 || leftCount<5) return rows.map(r=>joinRowItems(r.its)).filter(Boolean);   // single column
+  if(!RX || bc<4 || leftCount<5)                                          // single column
+    return [].concat(...rows.map(r=>splitRowAtGaps(r.its).map(joinRowItems))).filter(Boolean);
 
   const out=[]; let e=null;
   const flush=()=>{ if(!e) return; out.push("");
-    let m=e.meta.join(" ").replace(/\s*[—–\-]\s*$/,"").replace(/\s{2,}/g," ").trim();
+    let m=e.meta.join(" ").replace(/\s*[\u2014\u2013\-]\s*$/,"").replace(/\s{2,}/g," ").trim();
     m=m.replace(/\s(\d{1,2}\s+(?:год|года|лет|месяц[а-яё]*).*)$/i," · $1");   // period · duration
     if(m) out.push(m); e.content.forEach(c=>out.push(c)); e=null; };
   for(const r of rows){
@@ -221,14 +310,14 @@ function reconstructLines(items, pageW){
     if(twoCol){
       const meta=joinRowItems(parts.slice(0,gi+1)), content=joinRowItems(parts.slice(gi+1));
       if(PERIOD_START.test(meta)){ flush(); e={meta:[meta], content: content?[content]:[]}; }
-      else if(e){ e.meta.push(meta); if(content) e.content.push(content); }
-      else { out.push(meta); if(content) out.push(content); }
+      else if(e && e.meta.length<4 && !isHeader(meta)){ e.meta.push(meta); if(content) e.content.push(content); }
+      else { flush(); out.push(meta); if(content) out.push(content); }   // hh.ru meta is 1-3 short lines; more is a sidebar
     } else {
       const line=joinRowItems(parts);
       const rightOnly = parts.every(p=>p.x>=RX-8);
       const leftOnly  = parts.every(p=>(p.x+p.w)<RX-6);
       if(rightOnly){ if(e) e.content.push(line); else out.push(line); }
-      else if(leftOnly && e && !isHeader(line) && (DATE_L.test(line)||line.length<26)){ e.meta.push(line); }
+      else if(leftOnly && e && e.meta.length<4 && !isHeader(line) && (DATE_L.test(line)||line.length<26)){ e.meta.push(line); }
       else { flush(); out.push(line); }   // heading or full-width prose
     }
   }
@@ -275,7 +364,7 @@ async function extractImage(file, opts){
 /* ============================ cleaning ============================ */
 function cleanText(text, on){
   on = on!==false;
-  let lines=text.replace(/\r/g,"").split("\n");
+  let lines=text.replace(/\r/g,"").split("\n").map(collapseTracked);   // "Р Е З Ю М Е" typed by hand in Word, OCR of tracked headings
   const out=[];
   for(let raw of lines){
     let ln=raw.replace(/ /g," ").replace(/[ \t]+/g," ").trimEnd();
@@ -292,7 +381,7 @@ function cleanText(text, on){
           .replace(/\b(sourced\s+(via|from|on)|found\s+(via|on)|via|from|source)\b\s*[.:,]?\s*$/i,"")
           .replace(/(https?:\/\/|www\.)\S*/gi,"")
           .replace(/\s+\./g,".")
-          .replace(/\s*[•|·\-–—,;:]\s*$/,"").replace(/^\s*[•|·\-–—,;:]\s*/,"")
+          .replace(/\s*[•|·\-\u2013\u2014,;:]\s*$/,"").replace(/^\s*[•|·\-\u2013\u2014,;:]\s*/,"")
           .replace(/\s{2,}/g," ").trim();
         if(stripped.replace(/[^a-zа-яё0-9]/ig,"").length<3) continue;
         ln=stripped;
@@ -308,8 +397,8 @@ const HEAD_TAIL=new Set(["and","&","of","the","training","information","info","h
 function isHeader(line){
   let t=line.trim().replace(/\s*[:：]\s*$/,"");           // tolerate a trailing colon
   if(!t) return null;
-  // strip an hh.ru duration tail ("— 13 лет 5 месяцев") before structural checks
-  const core=t.replace(/\s*[—\-–]\s*\d+\s*(год\w*|лет|year\w*|month\w*|мес\w*).*$/i,"").trim();
+  // strip an hh.ru duration tail ("- 13 лет 5 месяцев") before structural checks
+  const core=t.replace(/\s*[\u2014\-\u2013]\s*\d+\s*(год\w*|лет|year\w*|month\w*|мес\w*).*$/i,"").trim();
   if(!core||core.length>40) return null;
   if(/[,;]|[•·|]/.test(core)) return null;                // headers carry no commas or bullet separators
   if(core.split(/\s+/).length>6) return null;
@@ -326,9 +415,23 @@ function isHeader(line){
 function isContactLine(tt){
   if(!tt) return false;
   if(EMAIL_RE.test(tt) && tt.length<70) return true;
-  if(/^[+(]?\d[\d\s().\-]{7,}\d$/.test(tt)) return true;
+  if(/^[+(]?\d[\d\s().\-]{7,}\d$/.test(tt) && !/^(19|20)\d{2}\s*\p{Pd}\s*(19|20)\d{2}$/u.test(tt)) return true;   // "2018 - 2024" is a period
   if(/^((https?:\/\/)?(www\.)?[a-z0-9.\-]+\.[a-z]{2,}(\/\S*)?)$/i.test(tt) && !/\s/.test(tt)) return true;
   return false;
+}
+// contact line already shown in the header (same e-mail / same phone digits); bare URLs are dropped as before
+function isHeaderContact(tt,res){
+  const e=tt.match(EMAIL_RE), dg=s=>(s||"").replace(/\D/g,"");
+  if(e) return !!res.email && e[0].toLowerCase()===res.email.toLowerCase();
+  if(/^[+(]?\d[\d\s().\-]{7,}\d$/.test(tt)) return !!res.phone && dg(tt)===dg(res.phone);
+  return true;
+}
+// a sentence, not a contact entry: long, or a short phrase with function words ("Brazil, and the UAE.")
+const FUNC_WORD=/(?<![\p{L}])(and|the|with|for|of|in|to|an|on|at|by|from|и|в|с|на|по|для|от|до|за|из)(?![\p{L}])/iu;
+function isProseLine(c){
+  const t=(c||"").trim(), w=t.split(/\s+/).length;
+  if(!t || EMAIL_RE.test(t) || PHONE_RE.test(t) || /https?:|www\./i.test(t) || PERSONAL_RE.test(t)) return false;
+  return (t.length>=40 && w>=4) || (w>=3 && FUNC_WORD.test(t));
 }
 function isLocationLine(tt){
   if(tt.length>=55 || /\d{4}/.test(tt) || EMAIL_RE.test(tt)) return false;
@@ -347,9 +450,9 @@ function looksLikeName(line){
   return letters>=t.replace(/\s/g,"").length*0.7;
 }
 
-// hh.ru experience: each job starts with a period line like "Ноябрь 2024 —" — add a blank line between jobs for readability
+// hh.ru experience: each job starts with a period line like "Ноябрь 2024 -" - add a blank line between jobs for readability
 function spaceExperienceEntries(body){
-  const startRe=/^[А-ЯЁA-Z][а-яёa-z]+\.?\s+\d{4}\s*[—–-]\s*$/;
+  const startRe=/^[А-ЯЁA-Z][а-яёa-z]+\.?\s+\d{4}\s*[\u2014\u2013-]\s*$/;
   const lines=body.split("\n"), out=[]; let seen=false;
   for(const l of lines){
     if(startRe.test(l.trim())){
@@ -386,7 +489,7 @@ function parseResume(text){
     const t=(lines[k]||"").trim();
     if(!t) continue;
     const h=isHeader(t);
-    if(h==="__CONTACTS__"||h==="__PERSONAL__") continue;   // skip hh.ru "Способы связаться"/contact labels — the name may sit just after
+    if(h==="__CONTACTS__"||h==="__PERSONAL__") continue;   // skip hh.ru "Способы связаться"/contact labels - the name may sit just after
     if(h||PERSONAL_RE.test(t)) break;
     if(looksLikeName(t)){
       if(JOB_TITLE_RE.test(t) && !pendingHead){ pendingHead=t; continue; } // job title sitting above the name -> headline
@@ -400,40 +503,52 @@ function parseResume(text){
       const t=(lines[k]||"").trim();
       if(!t) continue;
       if(EMAIL_RE.test(t)||PHONE_RE.test(t)||isHeader(t)||PERSONAL_RE.test(t)) break;
+      if(res.loc && tidyLoc(t)===res.loc) continue;          // city printed next to the name is not the headline
       if(t.length<=70 && !/[•|]/.test(t)){ res.head=t; i=k+1; }
       break;
     }
+    // a short headline wrapped onto a second line by the layout: "Customer" / "Representative"
+    const nx=(lines[i]||"").trim();
+    if(res.head && /^[\p{L}\s]+$/u.test(res.head) && res.head.split(/\s+/).length<=2 && /^\p{Lu}\p{L}{2,19}$/u.test(nx)
+       && !isHeader(nx) && !PERSONAL_RE.test(nx) && !looksLikeLocationChunk(nx)){ res.head+=" "+nx; i++; }
     if(!res.head && pendingHead) res.head=pendingHead;
   } else { i=start; }
 
   let cur={title:"",body:[]};
   const flush=()=>{ if(cur.title||cur.body.join("").trim()){ res.sections.push({title:cur.title,body:cur.body.join("\n").trim()}); } };
   let started=false;
+  const absorbed=new Set();
   for(let k=i;k<lines.length;k++){
+    if(absorbed.has(k)) continue;
     const t=lines[k];
     const h=isHeader(t);
     if(h){
       if(h==="__CONTACTS__" || h==="__PERSONAL__"){
-        let j=k+1;
-        for(; j<lines.length; j++){
+        for(let j=k+1; j<lines.length; j++){
           const c=lines[j]; if(isHeader(c)) break;
+          // two-column layouts interleave the neighbour column's sentences into a contacts block: leave them in the flow
+          if(h==="__CONTACTS__" && isProseLine(c)) continue;
+          absorbed.add(j);
           if(!c.trim()) continue;
           if(!res.email){const e=c.match(EMAIL_RE);if(e)res.email=e[0];}
           if(!res.phone){const p=c.match(PHONE_RE);if(p)res.phone=p[0].trim();}
+          if(h==="__CONTACTS__" && looksLikeLocationChunk(c) && !/(^|[\s,])(м\.|метро|ст\.|station)/i.test(c)){   // "Al Furjan, Dubai, UAE" beats "Dubai, UAE"
+            const lc=tidyLoc(c);
+            if(!res.loc || (lc.length>res.loc.length && lc.toLowerCase().includes(res.loc.toLowerCase()))) res.loc=lc;
+          }
           if(h==="__PERSONAL__"){
             const pl=c.replace(/^[•\-\s]+/,"").trim();
             if(pl && !EMAIL_RE.test(c) && !/^(https?:|www\.)|@/i.test(pl) && pl.length<90)
               res.personal=(res.personal?res.personal+"\n":"")+pl;
           }
         }
-        k=j-1;            // skip absorbed lines
-        continue;
+        continue;         // absorbed lines are skipped by the main loop
       }
       if(started) flush();
       cur={title:h,body:[]}; started=true;
     } else {
       const tt=t.trim();
-      if(isContactLine(tt)) continue;
+      if(isContactLine(tt) && isHeaderContact(tt,res)) continue;   // a second e-mail / phone stays in the text
       if(!started && (tt==="" || isLocationLine(tt) || PERSONAL_RE.test(tt) || (res.loc && tt===res.loc))) continue;
       if(!started){ cur.title=res.name&&/[а-яё]/i.test(res.name)?"Профиль":"Profile"; }
       cur.body.push(t);
@@ -466,7 +581,7 @@ function escapeHtml(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
 function bulletize(body){
   return (body||"").split("\n").map(l=>{
     const t=l.trim();
-    if(/^[-•*–▪‣·]\s+/.test(t)) return `<div class="li">${escapeHtml(t.replace(/^[-•*–▪‣·]\s+/,""))}</div>`;
+    if(/^[-•*\u2013▪‣·]\s+/.test(t)) return `<div class="li">${escapeHtml(t.replace(/^[-•*\u2013▪‣·]\s+/,""))}</div>`;
     if(!t) return `<div class="sp"></div>`;
     return `<div>${escapeHtml(t)}</div>`;
   }).join("");
@@ -584,9 +699,9 @@ async function buildResumeDoc(d, cb){
     s.body.split("\n").forEach(raw=>{
       const t=raw.replace(/\s+$/,"");
       if(!t.trim()){ y+=4; return; }
-      const bullet=/^[-•*–▪‣·]\s+/.test(t.trim());
+      const bullet=/^[-•*\u2013▪‣·]\s+/.test(t.trim());
       const indent=bullet?13:0;
-      const txt=bullet?t.trim().replace(/^[-•*–▪‣·]\s+/,""):t;
+      const txt=bullet?t.trim().replace(/^[-•*\u2013▪‣·]\s+/,""):t;
       doc.splitTextToSize(txt,CW-indent).forEach((l,li)=>{
         need(11.5);
         if(bullet&&li===0){ setC(BEI); doc.text("•",M,y+8); setC(INK); }
@@ -622,7 +737,7 @@ function decodePayload(str){
 }
 
 global.TLNT = {
-  ensureFonts, extractFile, extractPdf, cleanText, parseResume,
+  ensureFonts, extractFile, extractPdf, reconstructLines, joinRowItems, collapseTracked, cleanText, parseResume, isHeader,
   renderPreview, buildResumeDoc, downloadResumePdf,
   encodePayload, decodePayload, imgToDataUrl
 };
