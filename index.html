@@ -149,7 +149,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
       <div class="logo-mark">TLNT<span class="dot">.</span>AE</div>
       <div><div class="sub">Talent Agency · UAE</div><h1>Resume Formatter</h1></div>
     </div>
-    <div class="right">Любое резюме → единый PDF TLNT.AE. Сохраняет фото и все данные.<br>
+    <div class="right">Любое резюме в единый PDF TLNT.AE. Сохраняет фото и все данные.<br>
       <span class="lock">🔒 Обработка локально в браузере</span></div>
   </div>
 
@@ -178,7 +178,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
       <button class="btn-primary" id="modalDownload" style="padding:9px 14px;white-space:nowrap">⬇ Скачать PDF</button>
       <a id="openLink" class="btn-ghost" target="_blank" rel="noopener" style="padding:8px 12px;white-space:nowrap">Открыть ↗</a>
     </div>
-    <div class="muted" id="modalDesc" style="margin-top:7px">Короткая ссылка создаётся автоматически и обновляется при изменениях. «Скачать PDF» работает в любой момент.</div>
+    <div class="muted" id="modalDesc" style="margin-top:7px">Короткая ссылка создаётся автоматически и обновляется при изменениях. "Скачать PDF" работает в любой момент.</div>
   </div>
 
   <div class="grid">
@@ -201,7 +201,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
         </div>
         <div id="textMode" style="display:none">
           <textarea class="paste" id="pasteArea" placeholder="Вставьте текст резюме сюда…"></textarea>
-          <div class="row"><button class="btn-ghost" id="parsePaste">Разобрать текст →</button></div>
+          <div class="row"><button class="btn-ghost" id="parsePaste">Разобрать текст</button></div>
         </div>
         <div id="status"></div>
         <div class="bar" id="bar"><i></i></div>
@@ -212,7 +212,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 
       <div class="card panel" style="margin-top:22px" id="editorCard">
         <h2>2 · Данные кандидата</h2>
-        <p class="muted" id="editorHint">Загрузите резюме слева — поля и фото заполнятся автоматически, ничего не теряется. Здесь можно всё поправить.</p>
+        <p class="muted" id="editorHint">Загрузите резюме слева - поля и фото заполнятся автоматически, ничего не теряется. Здесь можно всё поправить.</p>
         <div id="editorBody" style="display:none">
           <div class="field"><label>Фото</label>
             <div class="photo-edit">
@@ -230,7 +230,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
           </div>
           <div class="two">
             <div class="field"><label>Локация</label><input id="fLoc" placeholder="Dubai, UAE"></div>
-            <div class="field"><label>Ссылка — необязательно</label><input id="fLink" placeholder="github.com/…"></div>
+            <div class="field"><label>Ссылка - необязательно</label><input id="fLink" placeholder="github.com/…"></div>
           </div>
           <div class="field"><label>Личные данные (возраст, гражданство, занятость…)</label><textarea id="fPersonal" placeholder="по одному пункту на строке"></textarea></div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px">
@@ -264,7 +264,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 <script>
 const $=s=>document.querySelector(s);
 const status=m=>{ $("#status").textContent=m||""; };
@@ -369,14 +369,14 @@ async function setLang(target){
     const translated=await translateData(langCache[lang]||collect(), lang, target);
     langCache[target]=translated; lang=target; fillEditor(translated); cb(""); status("Переведено ✓ Проверьте текст перед сохранением.");
   }catch(e){
-    cb(""); status("⚠️ Перевод пока недоступен (бэкенд перевода ещё не подключён). Версия осталась на «"+(lang==="ru"?"русском":"английском")+"».");
+    cb(""); status("⚠️ Перевод пока недоступен (бэкенд перевода ещё не подключён). Версия осталась на "+(lang==="ru"?"русском":"английском")+".");
   }finally{ setLangDisabled(false); setLangUI(); updatePreview(); }
 }
 /* blind mode: strip everything that identifies the candidate, keep the professional profile */
 function applyMode(d){
   if(mode!=="blind") return d;
   const c=JSON.parse(JSON.stringify(d));
-  c.name="Кандидат"; c.email=""; c.phone=""; c.link="";   // photo is kept on purpose
+  c.name=(c.lang==="en")?"Candidate":"Кандидат"; c.email=""; c.phone=""; c.link="";   // photo is kept on purpose
   return c;
 }
 function setMode(m){
@@ -408,7 +408,7 @@ async function handleFiles(files){
   }catch(e){ console.error(e); cb(""); status("Ошибка: "+e.message); }
 }
 
-/* nothing about candidates is stored in the browser — only the link carries the data */
+/* nothing about candidates is stored in the browser - only the link carries the data */
 function shareUrl(payload){ return location.origin+location.pathname.replace(/index\.html$/,"")+"view.html#"+payload; }
 // Auto-create / refresh the resume link whenever the resume is ready or changes.
 // Deletes the previous auto-copy of THIS resume so nothing accumulates. Nothing is stored in the browser.
@@ -440,13 +440,13 @@ async function regenLink(){
 }
 function showShare(url,name,isShort){
   $("#shareLink").value=url; $("#openLink").href=url;
-  if(isShort) $("#modalDesc").textContent="Короткая ссылка на резюме — открывается в любом браузере, можно скачать PDF.";
+  if(isShort) $("#modalDesc").textContent="Короткая ссылка на резюме - открывается в любом браузере, можно скачать PDF.";
   else if(url.length>6000) $("#modalDesc").textContent="Длинная ссылка (с фото). Открывается в любом браузере; лучше отправлять через мессенджер.";
-  else $("#modalDesc").textContent="Ссылка содержит всё резюме целиком — открывается в любом браузере.";
+  else $("#modalDesc").textContent="Ссылка содержит всё резюме целиком - открывается в любом браузере.";
   $("#shareBar").scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 function resetShare(){ $("#shareLink").value=""; $("#openLink").removeAttribute("href"); modalData=null;
-  $("#modalDesc").textContent="Короткая ссылка создаётся автоматически и обновляется при изменениях. «Скачать PDF» работает в любой момент."; }
+  $("#modalDesc").textContent="Короткая ссылка создаётся автоматически и обновляется при изменениях. \"Скачать PDF\" работает в любой момент."; }
 
 /* ---- wiring ---- */
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
@@ -470,12 +470,24 @@ $("#photoRemove").onclick=()=>setPhoto("");
 // language switch
 document.querySelectorAll(".lang-opt").forEach(b=>b.onclick=()=>setLang(b.dataset.lang).catch(()=>{}));
 // share modal
-$("#copyLink").onclick=()=>{ const i=$("#shareLink"); if(!i.value){ status("Ссылка ещё создаётся — секунду…"); return; } i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
+$("#copyLink").onclick=()=>{ const i=$("#shareLink"); if(!i.value){ status("Ссылка ещё создаётся - секунду…"); return; } i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
 $("#modalDownload").onclick=()=>{ const d = modalData || ($("#editorBody").style.display!=="none" ? applyMode(collect()) : null);
   if(!d || (!d.name && !(d.sections&&d.sections.length))){ status("Сначала загрузите резюме."); return; }
   const b=$("#modalDownload"); b.textContent="Готовлю…"; TLNT.downloadResumePdf(d).then(()=>b.textContent="⬇ Скачать PDF").catch(e=>{b.textContent="Ошибка";console.error(e);}); };
 
-try{ localStorage.removeItem("tlnt_lib_v1"); }catch(e){}   // wipe any resumes stored by older versions — nothing is kept in the browser now
+// open a saved resume for editing: tlnt.ae/tlnt-resume/#cv=<token> ("Править на сайте" in the Telegram bot)
+(async function(){
+  const m=location.hash.match(/^#cv=([a-z0-9]{8,50})$/); if(!m) return;
+  try{
+    cb("Открываю резюме…",0.4);
+    const r=await fetch("https://cv.tlnt.ae/"+m[1]+".json"); if(!r.ok) throw new Error("status "+r.status);
+    const d=await r.json(); cb("");
+    renderEditor(d);
+    status("Резюме открыто ✓ Поправьте поля: ссылка и PDF обновятся сами.");
+    history.replaceState(null,"",location.pathname);
+  }catch(e){ cb(""); status("Не удалось открыть резюме по ссылке: она устарела или удалена."); }
+})();
+try{ localStorage.removeItem("tlnt_lib_v1"); }catch(e){}   // wipe any resumes stored by older versions - nothing is kept in the browser now
 TLNT.ensureFonts().catch(()=>{});
 </script>
 </body>

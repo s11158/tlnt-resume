@@ -145,7 +145,7 @@ async function extractFile(file, opts){
   if(name.endsWith(".txt")||file.type==="text/plain") return {text:await file.text(), photo:""};
   if(name.endsWith(".pdf")||file.type==="application/pdf") return await extractPdf(file);
   if(name.endsWith(".docx")) return {text:await extractDocx(file), photo:""};
-  if(name.endsWith(".doc")) throw new Error("Старый формат .doc не поддерживается — пересохраните как .docx или PDF.");
+  if(name.endsWith(".doc")) throw new Error("Старый формат .doc не поддерживается - пересохраните как .docx или PDF.");
   if((file.type||"").startsWith("image/")||/\.(png|jpe?g|webp|bmp)$/.test(name)) return await extractImage(file,opts);
   return {text:await file.text(), photo:""};
 }
@@ -155,7 +155,7 @@ async function extractPdf(file, cb){
   const pdf=await pdfjsLib.getDocument({data}).promise;
   let out=[]; let bestImg=null;
   for(let p=1;p<=pdf.numPages;p++){
-    if(cb) cb(`Читаю PDF — страница ${p}/${pdf.numPages}…`, p/pdf.numPages);
+    if(cb) cb(`Читаю PDF - страница ${p}/${pdf.numPages}…`, p/pdf.numPages);
     const page=await pdf.getPage(p);
     const vp=page.getViewport({scale:1});
     const tc=await page.getTextContent();
@@ -167,7 +167,12 @@ async function extractPdf(file, cb){
       const names=[];
       ops.fnArray.forEach((fn,i)=>{ if(fn===pdfjsLib.OPS.paintImageXObject) names.push(ops.argsArray[i][0]); });
       for(const nm of names){
-        const img=await new Promise(res=>{ try{ page.objs.get(nm,res); }catch(e){ res(null); } });
+        // images shared between pages live in commonObjs ("g_" prefix): page.objs.get never resolves for them -> hang
+        const store=nm.startsWith("g_")?page.commonObjs:page.objs;
+        const img=await Promise.race([
+          new Promise(res=>{ try{ store.get(nm,res); }catch(e){ res(null); } }),
+          new Promise(res=>setTimeout(()=>res(null),4000))   // never block the whole resume on one image
+        ]);
         if(!img||!img.width) continue;
         const area=img.width*img.height;
         if(area<60*60) continue;                 // skip icons/logos
@@ -468,8 +473,8 @@ function bulletize(body){
 }
 function safeImg(v){ return (typeof v==="string" && /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(v)) ? v : ""; }
 function footerLeft(d){ return (d&&d.lang==="en")
-  ? "Prepared by TLNT.AE — talent & recruitment agency, Dubai, UAE"
-  : "Подготовлено агентством TLNT.AE — подбор персонала, Дубай, ОАЭ"; }
+  ? "Prepared by TLNT.AE - talent & recruitment agency, Dubai, UAE"
+  : "Подготовлено агентством TLNT.AE - подбор персонала, Дубай, ОАЭ"; }
 function renderPreview(el, d){
   const contacts=[d.email,d.phone,d.loc,d.link].filter(Boolean);
   const logo=safeImg(d.logo), photo=safeImg(d.photo);
@@ -545,7 +550,7 @@ async function buildResumeDoc(d, cb){
   const textW = photoW? CW-photoW-16 : CW;
   let leftY=y;
   doc.setFont("Roboto","bold"); doc.setFontSize(18); setC(GRAPH);
-  doc.splitTextToSize(d.name||"—", textW).forEach(l=>{ doc.text(l,M,leftY+15); leftY+=21; });
+  doc.splitTextToSize(d.name||"-", textW).forEach(l=>{ doc.text(l,M,leftY+15); leftY+=21; });
   leftY+=1;
   if(d.head){ doc.setFont("Roboto","normal"); doc.setFontSize(10.5); setC(MUT);
     doc.splitTextToSize(d.head,textW).forEach(l=>{ doc.text(l,M,leftY+9); leftY+=13; }); }
