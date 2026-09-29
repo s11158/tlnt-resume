@@ -73,6 +73,42 @@ const HEAD_MAP = [
 
 const EMAIL_RE = /[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i;
 const PHONE_RE = /(\+?\(?\d[\d\s().\-]{7,}\d)/;
+
+/* ---- phone picking: the first digit run is often a period or an ID, not the phone ---- */
+const PHONE_LINE_RE = /\+?\(?\d(?:[\d().\-]|[^\S\r\n]){7,}\d/g;   // never crosses a line break ("915264444\n2023")
+const PHONE_LABEL_RE = /(?<![\p{L}])(phone|telephone|tel|mobile|mob|cell|whatsapp|телефон|тел|мобильный|моб|сотовый)(?![\p{L}])/iu;
+const ID_LABEL_RE = /((?<![\p{L}])(id|no|passport|contract|policy|invoice|account|iban|license|licence|паспорт|договор|полис|инн|снилс)|№|n°|#)\s*[.:]?\s*$/iu;
+const isYear = g => /^(19|20)\d{2}$/.test(g);
+// digits that are not a phone: too short ("36.6"), a period ("2018 - 2024", "2013 2003"), a date ("11.06.1984", "01.2019 - 05.2021")
+function phoneJunk(p){
+  const g=p.match(/\d+/g)||[];
+  if(g.join("").length<7) return true;
+  if(g.every(isYear)) return true;
+  if(g.some(isYear) && g.every(x=>x.length<=2||isYear(x))) return true;
+  return false;
+}
+// first plausible phone in the text; "+", a phone label or grouped digits win over a bare number sitting inside other text
+function findPhone(text){
+  let fallback="";
+  for(const line of String(text||"").split("\n")){
+    for(const m of line.matchAll(PHONE_LINE_RE)){
+      let p=m[0].trim();
+      if(p[0]==="(" && !p.includes(")")) p=p.slice(1);          // "(2018 - 2020"
+      const before=line.slice(0,m.index), after=line.slice(m.index+m[0].length);
+      if(phoneJunk(p)) continue;
+      if(p[0]!=="+" && /\p{L}$/u.test(before)) continue;          // tail of a code: "CMX094025509", "ivan1234567@..."
+      const labeled=PHONE_LABEL_RE.test(line);
+      if(p[0]!=="+" && !PHONE_LABEL_RE.test(before) && ID_LABEL_RE.test(before)) continue;   // "Contract n°: 915264444"
+      if(/^\s*(₽|руб|\$|€|aed|usd|eur|rub|тыс)/iu.test(after)) continue;                       // salary, not a phone
+      const grouped=/^\(\d{2,5}\)/.test(p) || (p.match(/\d+/g)||[]).length>=3;
+      const chunk=before.split(/[|•·;,]/).pop();                   // "Dubai, UAE | 0501234567" is a contact row, not text
+      const inText=/\p{L}/u.test(chunk.replace(EMAIL_RE,"").replace(/https?:\/\/\S+|www\.\S+/gi,""));
+      if(p[0]==="+" || labeled || grouped || !inText) return p;
+      if(!fallback) fallback=p;
+    }
+  }
+  return fallback;
+}
 const URL_RE   = /\b((https?:\/\/)?(www\.)?[a-z0-9\-]+\.[a-z]{2,}(\/[^\s]*)?)\b/i;
 const PERSONAL_RE = /(мужчина|женщина|\d+\s+(год|года|лет)|родил|проживает|гражданств|разрешение на работу|готов(а)? к переезд|готов(а)? к командиров|не готов|тип занятости|формат работы|время в пути|желательное время|занятость|желаемая зарплата|date of birth|nationality|marital status)/i;
 
@@ -430,7 +466,7 @@ function isHeaderContact(tt,res){
 const FUNC_WORD=/(?<![\p{L}])(and|the|with|for|of|in|to|an|on|at|by|from|и|в|с|на|по|для|от|до|за|из)(?![\p{L}])/iu;
 function isProseLine(c){
   const t=(c||"").trim(), w=t.split(/\s+/).length;
-  if(!t || EMAIL_RE.test(t) || PHONE_RE.test(t) || /https?:|www\./i.test(t) || PERSONAL_RE.test(t)) return false;
+  if(!t || EMAIL_RE.test(t) || findPhone(t) || /https?:|www\./i.test(t) || PERSONAL_RE.test(t)) return false;
   return (t.length>=40 && w>=4) || (w>=3 && FUNC_WORD.test(t));
 }
 function isLocationLine(tt){
@@ -468,7 +504,7 @@ function parseResume(text){
   const res={name:"",head:"",email:"",phone:"",loc:"",link:"",personal:"",sections:[]};
 
   const em=text.match(EMAIL_RE); if(em) res.email=em[0];
-  const ph=text.match(PHONE_RE); if(ph) res.phone=ph[0].trim();
+  res.phone=findPhone(text);
   const linkM = text.match(/(?:https?:\/\/)?(?:www\.)?(?:github|gitlab|behance|dribbble|medium|stackoverflow)\.[a-z]{2,}\/[A-Za-z0-9_\-./]+/i) || text.match(/\bt\.me\/[A-Za-z0-9_]+/i);
   if(linkM) res.link=linkM[0].replace(/[.,;]+$/,"");
   res.loc = detectLocation(lines);
@@ -531,7 +567,7 @@ function parseResume(text){
           absorbed.add(j);
           if(!c.trim()) continue;
           if(!res.email){const e=c.match(EMAIL_RE);if(e)res.email=e[0];}
-          if(!res.phone){const p=c.match(PHONE_RE);if(p)res.phone=p[0].trim();}
+          if(!res.phone) res.phone=findPhone(c);
           if(h==="__CONTACTS__" && looksLikeLocationChunk(c) && !/(^|[\s,])(м\.|метро|ст\.|station)/i.test(c)){   // "Al Furjan, Dubai, UAE" beats "Dubai, UAE"
             const lc=tidyLoc(c);
             if(!res.loc || (lc.length>res.loc.length && lc.toLowerCase().includes(res.loc.toLowerCase()))) res.loc=lc;
@@ -737,7 +773,7 @@ function decodePayload(str){
 }
 
 global.TLNT = {
-  ensureFonts, extractFile, extractPdf, reconstructLines, joinRowItems, collapseTracked, cleanText, parseResume, isHeader,
+  ensureFonts, extractFile, extractPdf, reconstructLines, joinRowItems, collapseTracked, cleanText, parseResume, isHeader, findPhone,
   renderPreview, buildResumeDoc, downloadResumePdf,
   encodePayload, decodePayload, imgToDataUrl
 };
