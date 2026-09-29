@@ -72,6 +72,7 @@ const HEAD_MAP = [
 ];
 
 const EMAIL_RE = /[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i;
+const EMAIL_G_RE = new RegExp(EMAIL_RE.source,"gi");
 const PHONE_RE = /(\+?\(?\d[\d\s().\-]{7,}\d)/;
 
 /* ---- phone picking: the first digit run is often a period or an ID, not the phone ---- */
@@ -144,6 +145,12 @@ function detectLocation(lines){
     for(let ch of chunks){
       ch=ch.trim();
       const hadPrefix=LOC_PREFIX_RE.test(ch);
+      if(!hadPrefix){                                         // "archvadze89@gmail.com +971502608464 Dubai": the city after the contacts
+        const ph=findPhone(ch);
+        let rest=ch.replace(EMAIL_G_RE," ").replace(/(https?:\/\/|www\.)\S+/gi," ");
+        if(ph) rest=rest.split(ph).join(" ");
+        ch=rest.replace(/^[\s,;]+|[\s,;]+$/g,"");
+      }
       let cand=hadPrefix ? ch.replace(LOC_PREFIX_RE,"").trim() : ch;
       if(hadPrefix){                                          // keep just the city/region, drop metro & extra clauses
         cand=cand.split(/\s*,\s*/).filter(p=>p && !/^(м\.|метро|ст\.|station|метро)/i.test(p)).slice(0,2).join(", ");
