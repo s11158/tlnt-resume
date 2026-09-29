@@ -455,6 +455,27 @@ function isHeader(line){
   }
   return null;
 }
+// An ALL-CAPS line that names a resume block ("ОПЫТ ВОЖДЕНИЯ", "ПРОФЕССИОНАЛЬНЫЙ ПРОФИЛЬ", "DRIVING LICENSE AND LANGUAGES")
+// is a section header even when it is not in HEAD_MAP. Caps job titles ("PROFESSIONAL DRIVER", "ОПЫТНЫЙ ВОДИТЕЛЬ")
+// do not start with one of these phrases, so they stay in the text. Used only after the name block.
+const CAPS_HEAD_RE=/^(опыт\s+\p{L}+|профессиональн\p{L}*\s+(профиль|опыт|навыки|качества|достижения|компетенции)|ключевые\s+\p{L}+|навыки|образование|обучение|водительск\p{L}*\s+(удостоверение|права)|удостоверени\p{L}*|языки|знание\s+языков|личные\s+(качества|данные)|личная\s+информация|дополнительн\p{L}*|сертификаты|курсы|достижения|квалификация|компетенции|о\s+себе|профиль|волонт\p{L}*|summary|profile|professional\s+(summary|profile|experience|skills|background|qualifications|development)|driving\s+(experience|licen[cs]es?|record)|licen[cs]es?|languages?|education|experience|skills|certifications?|courses|achievements|additional\s+information|personal\s+(details|information|qualities)|about\s+me|objective|qualifications|career\s+(summary|objective|history)|references|interests|hobbies|volunteer\p{L}*)(?![\p{L}])/iu;
+// Russian and service job titles (JOB_TITLE_RE uses \b, which never matches next to Cyrillic letters)
+const JOB_RU_RE=/(?<![\p{L}])(водител|шофер|повар|шеф-повар|официант|бармен|бариста|няня|горничн|уборщи|охранни|продав|кассир|курьер|механик|электрик|сантехник|сварщик|косметолог|массажист|парикмахер|стилист|врач|медсестр|медбрат|менеджер|директор|руководител|специалист|инженер|бухгалтер|администратор|консультант|аналитик|дизайнер|разработчик|программист|маркетолог|ассистент|секретар|оператор|кладовщик|грузчик|помощни|агент|рекрутер|юрист|переводчик|учител|преподавател|тренер|экономист|логист)(?:ь|я|и|ей|ем|ы|а|у|ом|ая|ой|ый|к|ка|ки|ца|цы|ец|щица)?(?![\p{L}])/iu;   // endings only: surnames like "Поварова", "Механиков" stay names
+const CAPS_TAIL=new Set(["&","/","proficiency","language","languages","licence","license","licences","licenses","certificates",
+  "certifications","courses","achievements","awards","qualities","record","qualifications","интересы","языки","навыки","качества",
+  "курсы","сертификаты","достижения","права","удостоверение","данные","информация","компетенции","опыт","хобби"]);
+function capsHeader(line){
+  const t=line.trim().replace(/\s*:\s*$/,"");
+  if(!t || t.length>45 || /\d/.test(t) || /\p{Ll}/u.test(t) || (t.match(/\p{Lu}/gu)||[]).length<4) return null;
+  if(t.split(/\s+/).length>5 || /[,;|•·]/.test(t)) return null;
+  const m=t.match(CAPS_HEAD_RE);
+  if(!m) return null;
+  // the rest may only be connecting / heading words: "И ЯЗЫКИ", "PROFICIENCY"; "EDUCATION MANAGEMENT PROFESSIONAL" is a job title
+  const rest=t.slice(m[0].length).toLowerCase().split(/\s+/).filter(Boolean);
+  if(!rest.every(w=>HEAD_TAIL.has(w) || CAPS_TAIL.has(w))) return null;
+  const low=t.toLowerCase();
+  return low.charAt(0).toUpperCase()+low.slice(1);
+}
 function isContactLine(tt){
   if(!tt) return false;
   if(EMAIL_RE.test(tt) && tt.length<70) return true;
@@ -526,16 +547,18 @@ function parseResume(text){
   if(i<lines.length && /^(resume|cv|curriculum vitae|резюме)\s*$/i.test(lines[i].trim())) i++;
   while(i<lines.length && !lines[i].trim()) i++;
   const start=i;
-  let pendingHead="";
+  let pendingHead="", pendingIdx=-1;
   // name is valid only above any section header / personal-facts block (hh.ru exports often omit the name)
   for(let k=start;k<Math.min(start+12,lines.length);k++){
     const t=(lines[k]||"").trim();
     if(!t) continue;
-    const h=isHeader(t);
+    const h=isHeader(t)||capsHeader(t);
     if(h==="__CONTACTS__"||h==="__PERSONAL__") continue;   // skip hh.ru "Способы связаться"/contact labels - the name may sit just after
     if(h||PERSONAL_RE.test(t)) break;
+    if(t.includes(",") && looksLikeLocationChunk(t)) continue;      // "Дубай, ОАЭ" printed under the title is not a name
     if(looksLikeName(t)){
-      if(JOB_TITLE_RE.test(t) && !pendingHead){ pendingHead=t; continue; } // job title sitting above the name -> headline
+      // job title sitting above the name (or instead of it) -> headline; names carry no "/"
+      if((JOB_TITLE_RE.test(t) || JOB_RU_RE.test(t) || t.includes("/")) && !pendingHead){ pendingHead=t; pendingIdx=k; continue; }
       res.name=t; i=k+1; break;
     }
     if(!isContactLine(t)) break;   // first real non-name, non-contact line -> no name here
@@ -545,7 +568,7 @@ function parseResume(text){
     for(let k=i;k<Math.min(i+4,lines.length);k++){
       const t=(lines[k]||"").trim();
       if(!t) continue;
-      if(EMAIL_RE.test(t)||PHONE_RE.test(t)||isHeader(t)||PERSONAL_RE.test(t)) break;
+      if(EMAIL_RE.test(t)||PHONE_RE.test(t)||isHeader(t)||capsHeader(t)||PERSONAL_RE.test(t)) break;
       if(res.loc && tidyLoc(t)===res.loc) continue;          // city printed next to the name is not the headline
       if(t.length<=70 && !/[•|]/.test(t)){ res.head=t; i=k+1; }
       break;
@@ -555,7 +578,8 @@ function parseResume(text){
     if(res.head && /^[\p{L}\s]+$/u.test(res.head) && res.head.split(/\s+/).length<=2 && /^\p{Lu}\p{L}{2,19}$/u.test(nx)
        && !isHeader(nx) && !PERSONAL_RE.test(nx) && !looksLikeLocationChunk(nx)){ res.head+=" "+nx; i++; }
     if(!res.head && pendingHead) res.head=pendingHead;
-  } else { i=start; }
+  } else if(pendingHead){ res.head=pendingHead; i=pendingIdx+1; }   // no name in the file (blind export): the title is the headline
+  else { i=start; }
 
   let cur={title:"",body:[]};
   const flush=()=>{ if(cur.title||cur.body.join("").trim()){ res.sections.push({title:cur.title,body:cur.body.join("\n").trim()}); } };
@@ -564,11 +588,11 @@ function parseResume(text){
   for(let k=i;k<lines.length;k++){
     if(absorbed.has(k)) continue;
     const t=lines[k];
-    const h=isHeader(t);
+    const h=isHeader(t)||capsHeader(t);
     if(h){
       if(h==="__CONTACTS__" || h==="__PERSONAL__"){
         for(let j=k+1; j<lines.length; j++){
-          const c=lines[j]; if(isHeader(c)) break;
+          const c=lines[j]; if(isHeader(c)||capsHeader(c)) break;
           // two-column layouts interleave the neighbour column's sentences into a contacts block: leave them in the flow
           if(h==="__CONTACTS__" && isProseLine(c)) continue;
           absorbed.add(j);
@@ -619,41 +643,336 @@ function parseResume(text){
   return res;
 }
 
+/* ============================ layout model (shared by the PDF and the HTML preview) ============================ */
+// A section body becomes blocks that both renderers draw the same way:
+//   p     paragraph (lines wrapped by the source PDF are joined back into one paragraph)
+//   li    bullet item (its wrapped continuation lines joined)
+//   sub   ALL-CAPS sub-heading inside a section
+//   kv    "Label: value" line (label in bold)
+//   entry job / education header: title, place and period (period goes to the right edge)
+//   role  a short position line right under an entry header
+//   grid  short items of a skills / languages section: chips or two columns
+//   gap   blank line between groups
+const GUIL_RE=new RegExp("["+String.fromCharCode(171,187)+"]","g");
+const ARROW_RE=new RegExp("["+String.fromCharCode(0x2190)+"-"+String.fromCharCode(0x21FF)+String.fromCharCode(0x27F5)+"-"+String.fromCharCode(0x27FF)+"]","g");
+// agency house style: plain hyphen instead of long dashes, straight quotes, no arrows
+function normText(s){
+  return String(s||"").replace(/\r/g,"").replace(/[^\S\n]+/g," ").replace(/\p{Pd}/gu,"-").replace(GUIL_RE,'"').replace(ARROW_RE,"-");
+}
+const MON_P="(?<![\\p{L}])(?:янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\\p{L}*\\.?";
+const YR_P="(?<!\\d)(?:19|20)\\d{2}(?!\\d)";
+const NOW_P="(?:по\\s+)?(?:настоящее\\s+время|наст\\.\\s*вр\\p{L}*\\.?|н\\.\\s?в\\.|сейчас|present|current|now|today|till\\s+date)";
+const PT_P=`(?:${MON_P}\\s*${YR_P}|\\d{1,2}[./]${YR_P}|${YR_P})`;
+const RANGE_RE=new RegExp(`${PT_P}\\s*(?:-|to|по|до)\\s*(?:${PT_P}|${NOW_P})`,"iu");
+const MONYR_RE=new RegExp(`${MON_P}\\s*${YR_P}`,"iu");
+const NOW_RE=new RegExp(NOW_P,"iu");
+const YEAR_RE=new RegExp(YR_P,"u");
+const DATE_TAIL_RE=new RegExp(`\\(?(?:${PT_P}|${NOW_P})(?:\\s*(?:-|to|по|до)\\s*(?:${PT_P}|${NOW_P}))?\\)?\\s*$`,"iu");
+const DATE_SPAN_RE=new RegExp(`(?:${PT_P})(?:\\s*(?:-|to|по|до)\\s*(?:${PT_P}|${NOW_P}))?`,"iu");
+const DUR_RE=/(?<![\p{L}\d])\d+(?:[.,]\d)?\s*(?:год\p{L}*|лет|мес\p{L}*|years?|yrs?|months?|mos?)(?![\p{L}])/iu;
+// list markers: round/square bullets, check marks, pointers and the Symbol/Wingdings glyphs Word exports keep
+const BULLET_CHARS="•●◦▪■‣·*✓✔"+String.fromCharCode(0x27A2,0x27A4,0x25BA,0x25B6,0x2043,0x2219,0x25E6,0xF0B7,0xF0A7,0xF076,0xF0D8,0xF0FC);
+const BUL_RE=new RegExp("^(?:["+BULLET_CHARS+"]\\s*|-\\s+)","u");
+const JOB_EN_RE=/(?<![\p{L}])(driver|chauffeur|chef|cook|waiter|waitress|barista|bartender|nanny|housekeeper|cleaner|guard|cashier|courier|receptionist|assistant|operator|worker|therapist|stylist|hairdresser|beautician|cosmetologist|teacher|tutor)(?![\p{L}])/iu;
+const jobLike=t=>JOB_TITLE_RE.test(t)||JOB_RU_RE.test(t)||JOB_EN_RE.test(t);
+const KV_RE=/^([\p{L}][\p{L}\p{N} /&().'+-]{0,32}?):\s+(\S.*)$/u;
+const GRID_T=/(skill|навык|компетенц|competenc|expertise|strength|умени|сильн|качеств|tools|инструмент|software|программ|technolog|технолог|stack|стек|language|язык)/i;
+const SUMM_T=/(summary|profile|about|objective|о себе|обо мне|профиль|цель)/i;
+
+function kvParts(t){
+  const m=t.match(KV_RE);
+  if(!m || m[1].trim().split(/\s+/).length>4 || /https?|www/i.test(m[1])) return null;
+  return {k:m[1].trim(), v:m[2].trim()};
+}
+function isMeta(t){
+  if(t.length>90 || /[.!?;:,]$/.test(t) || t.split(/\s+/).length>14 || kvParts(t)) return false;
+  if(RANGE_RE.test(t) || MONYR_RE.test(t)) return true;
+  const sep=/[|·•]/.test(t);
+  if(NOW_RE.test(t) && (YEAR_RE.test(t)||sep)) return true;
+  if(DUR_RE.test(t) && sep) return true;
+  return YEAR_RE.test(t) && (sep || /^\(?\s*(19|20)\d{2}\s*\)?$/.test(t) || /[,(]\s*(19|20)\d{2}\s*\)?$/.test(t));
+}
+function isCapsSub(t){
+  if(t.length>60 || /\d/.test(t) || /\p{Ll}/u.test(t) || (t.match(/\p{Lu}/gu)||[]).length<4) return false;
+  return t.split(/\s+/).length<=7 && /^[\p{Lu}\s&/,.'()"+-]+$/u.test(t) && !/[.,]$/.test(t);
+}
+function lineKind(t){
+  if(!t) return "gap";
+  if(BUL_RE.test(t)) return t.replace(BUL_RE,"").trim() ? "li" : "gap";
+  if(isMeta(t)) return "meta";
+  if(isCapsSub(t)) return "sub";
+  if(kvParts(t)) return "kv";
+  if(/:$/.test(t) && t.length<=60) return "lead";      // "Ключевые достижения:", "1. Этап открытия шоу-рума:"
+  return "text";
+}
+function splitMeta(t){
+  const date=[], place=[];
+  t.split(/\s*[|·•]\s*/).filter(Boolean).forEach(p=>
+    (RANGE_RE.test(p)||MONYR_RE.test(p)||NOW_RE.test(p)||DUR_RE.test(p)||YEAR_RE.test(p) ? date : place).push(p));
+  if(date.length===1 && !place.length){            // "Emirates NBD, Jan 2020 - Present": the period is cut off the tail
+    const m=date[0].match(DATE_TAIL_RE);
+    if(m && m.index>0){ const head=date[0].slice(0,m.index).replace(/[\s,(-]+$/,""); if(head) place.push(head); date[0]=m[0].replace(/^\(|\)$/g,""); }
+    else if(!m){                                   // "May 2023 - Hortman clinics, Dubai": the period is cut off the head
+      const s=date[0].match(DATE_SPAN_RE);
+      if(s){
+        const rest=(date[0].slice(0,s.index)+" "+date[0].slice(s.index+s[0].length)).replace(/^[\s,|()-]+|[\s,|()-]+$/g,"").replace(/\s{2,}/g," ");
+        if(rest){ place.push(rest); date[0]=s[0]; }
+      }
+    }
+  }
+  return { date:date.join(" · ").replace(/\s*-\s*/g," - ").replace(/\s{2,}/g," ").trim(), place:place.join(" · ") };
+}
+// a list marker extracted as its own line ("text" / "•") belongs to the line before it when the body ends with such a
+// marker (the glyph sat lower than its text), otherwise to the line after it
+function fixLoneBullets(lines){
+  const lone=l=>!!l && l.length===1 && (BULLET_CHARS.includes(l) || l==="-");
+  if(!lines.some(lone)) return lines;
+  const ne=lines.filter(Boolean), after=lone(ne[ne.length-1]);
+  const out=lines.slice();
+  for(let i=0;i<out.length;i++){
+    if(!lone(out[i])) continue;
+    const step=after?-1:1;
+    for(let j=i+step;j>=0 && j<out.length;j+=step){
+      if(!out[j]) continue;
+      if(!lone(out[j]) && !BUL_RE.test(out[j])) out[j]="• "+out[j];
+      break;
+    }
+    out[i]=null;
+  }
+  return out.filter(l=>l!==null);
+}
+// Lines the source layout wrapped are joined back: a paragraph or a bullet becomes one logical line.
+// kinds are taken from the normalized text, the output keeps the caller's characters.
+function reflowLines(lines){
+  const L=lines.map(t=>({t, k:lineKind(normText(t).trim())}));
+  const lens=L.filter(o=>o.k==="text"||o.k==="li").map(o=>o.t.length);
+  const maxLen=lens.length?Math.max.apply(null,lens):0;
+  // a line the source layout wrapped at the right margin; lists of shorter items without markers stay separate
+  const full=n=>maxLen>=45 && n>=0.85*maxLen;
+  const out=[]; let prevRaw="";
+  for(let i=0;i<L.length;i++){
+    const o=L[i], last=out[out.length-1];
+    if(o.k==="text" && last && (last.k==="li"||last.k==="text"||last.k==="kv")){
+      const lower=/^[\p{Ll}(]/u.test(o.t);
+      if(lower || (last.k!=="kv" && full(prevRaw.length) && !/[.!?]$/.test(prevRaw) && !(L[i+1] && L[i+1].k==="meta"))){
+        last.t+=(/\p{L}-$/u.test(last.t)?"":" ")+o.t; last.one=false; prevRaw=o.t; continue;
+      }
+    }
+    out.push({t:o.t, k:o.k, one:true}); prevRaw=o.k==="gap"?"":o.t;
+  }
+  return out;
+}
+function reflowText(body){ return reflowLines(String(body||"").split("\n").map(l=>l.trim())).map(o=>o.t).join("\n"); }
+function structureLines(lines){
+  const L=reflowLines(lines);
+  const short=t=>t.length<=100 && !/[.!?;]$/.test(t);
+  const titleLike=b=>b && ((b.t==="p" && b.one) || b.t==="sub") && short(b.text);
+  const out=[]; let last=null, afterEntry=false;
+  for(let i=0;i<L.length;i++){
+    const {t,k,one}=L[i];
+    if(k==="gap"){
+      // a blank line inside a list is a page break of the source PDF, not a new group
+      const nx=L.slice(i+1).find(o=>o.k!=="gap");
+      if(last && last.t==="li" && nx && nx.k==="li") continue;
+      if(out.length && out[out.length-1].t!=="gap") out.push({t:"gap"});
+      last=null; afterEntry=false; continue;
+    }
+    if(k==="meta"){
+      const m=splitMeta(t); let title="", sub="";
+      // the entry title sits above the period line ("Driver / Туркменистан | 2017 - 2023") or right under it
+      // ("Company | 2010 - 2025 / General Manager"); when both are possible the one that reads like a job title wins
+      const nx=L[i+1];
+      const canBack=titleLike(out[out.length-1]);
+      // a company line may end with a period ("NICEHAIR (бьюти-бренд, Россия и Дубай).") but is one short sentence
+      const canFwd=!!nx && (nx.k==="text"||nx.k==="sub") && nx.one && nx.t.length<=80 && short(nx.t.replace(/\.$/,"")) && !/\.\s/.test(nx.t);
+      const back=canBack && (!canFwd || jobLike(out[out.length-1].text) || !jobLike(nx.t));
+      if(back){
+        title=out.pop().text;
+        const b=out[out.length-1], before=out[out.length-2];
+        if(titleLike(b) && (b.t==="sub" || !before || before.t==="gap" || before.t==="entry")){ sub=title; title=out.pop().text; }
+      } else if(canFwd){
+        title=L[++i].t.replace(/\.$/,"");
+        const n=L[i+1];
+        if(n && n.k==="text" && (looksLikeLocationChunk(n.t) || /\.[a-z]{2,}(\/|$)/i.test(n.t))){ sub=n.t; i++; }
+      }
+      if(m.place) sub = sub ? sub+" · "+m.place : m.place;
+      out.push({t:"entry", title, sub, date:m.date}); last=null; afterEntry=true; continue;
+    }
+    if(k==="text" && afterEntry && one && t.length<=70 && short(t) && !/^[\p{Ll}]/u.test(t)){
+      out.push({t:"role", text:t}); afterEntry=false; last=null; continue;
+    }
+    afterEntry=false;
+    if(k==="sub"){ out.push({t:"sub", text:t}); last=null; continue; }
+    if(k==="lead"){ out.push({t:"lead", text:t}); last=null; continue; }
+    if(k==="li"){ last={t:"li", text:t.replace(BUL_RE,"").trim()}; out.push(last); continue; }
+    if(k==="kv"){ const kv=kvParts(t); last={t:"kv", k:kv.k, text:kv.v}; out.push(last); continue; }
+    last={t:"p", text:t, one}; out.push(last);
+  }
+  while(out.length && out[out.length-1].t==="gap") out.pop();
+  while(out.length && out[0].t==="gap") out.shift();
+  return out;
+}
+// short items of a skills / languages section -> chips (short) or a two-column list (longer)
+function gridItems(title, blocks){
+  if(!GRID_T.test(title)) return null;
+  const bs=blocks.filter(b=>b.t!=="gap");
+  let items=null;
+  if(bs.length>=4 && bs.every(b=>(b.t==="li" || (b.t==="p" && b.one)) && b.text.length<=110)
+     && bs.filter(b=>b.text.length<=60).length>=bs.length*0.75) items=bs.map(b=>b.text);
+  else if(bs.length && bs.length<=3 && bs.every(b=>b.t==="p"||b.t==="li")){
+    const parts=bs.map(b=>b.text).join(", ").split(/\s*[,;•|·]\s*/).map(x=>x.replace(/[.]$/,"").trim()).filter(Boolean);
+    if(parts.length>=5 && parts.every(p=>p.length<=40)) items=parts;
+  }
+  if(!items || items.filter(x=>/[.!?]$/.test(x)).length>items.length/3) return null;   // sentences are not tags
+  return items;
+}
+function structureSection(s){
+  const title=normText(s.title).trim();
+  const lines=fixLoneBullets(normText(s.body).split("\n").map(l=>l.trim()));
+  // a first line repeating the section title ("ПРОФЕССИОНАЛЬНЫЙ ПРОФИЛЬ" under "Профиль") is dropped
+  const fi=lines.findIndex(Boolean);
+  if(fi>=0 && title){
+    const a=lines[fi].toLowerCase().replace(/[:\s]+$/,""), b=title.toLowerCase();
+    if(a===b || (isCapsSub(lines[fi]) && a.includes(b))) lines.splice(fi,1);
+  }
+  const blocks=structureLines(lines);
+  const items=gridItems(title, blocks);
+  if(items){
+    const avg=items.reduce((a,x)=>a+x.length,0)/items.length;
+    return {title, blocks:[{t:"grid", items, chips: avg<=24 && items.every(x=>x.length<=40)}], box:false};
+  }
+  const box=SUMM_T.test(title) && blocks.length>0 && blocks.length<=5 && blocks.every(b=>b.t==="p"||b.t==="gap");
+  return {title, blocks, box};
+}
+function layoutResume(d){
+  return (d.sections||[]).map(structureSection).filter(s=>s.blocks.length);
+}
+
 /* ============================ preview (HTML mirror) ============================ */
 function escapeHtml(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function bulletize(body){
-  return (body||"").split("\n").map(l=>{
-    const t=l.trim();
-    if(/^[-•*\u2013▪‣·]\s+/.test(t)) return `<div class="li">${escapeHtml(t.replace(/^[-•*\u2013▪‣·]\s+/,""))}</div>`;
-    if(!t) return `<div class="sp"></div>`;
-    return `<div>${escapeHtml(t)}</div>`;
-  }).join("");
+const CV_CSS=`
+.p-name{font-size:2.15em}
+.p-head{color:var(--beige-deep);font-weight:500;font-size:1.08em;margin-top:.35em}
+.p-contacts{font-size:.86em}
+.p-personal{font-size:.8em}
+.p-photo{border-radius:10px}
+.p-sec{margin-top:1.7em}
+.p-sec h3{font-size:.86em;letter-spacing:.13em;margin:0 0 .75em}
+.p-sec h3::before{content:"";width:3px;height:1.15em;border-radius:2px;background:var(--beige);flex:0 0 3px}
+.p-sec .body{font-size:.94em;line-height:1.5}
+.cv-p{margin:0 0 .35em}
+.cv-kv b,.cv-ul b{color:var(--graphite);font-weight:500}
+.cv-box{background:#FAF6EF;border-left:3px solid var(--beige);border-radius:0 8px 8px 0;padding:.75em 1em}
+.cv-box .cv-p:last-child{margin-bottom:0}
+.cv-entry{margin-top:1em}
+.cv-entry:first-child{margin-top:0}
+.cv-er{display:flex;justify-content:space-between;align-items:baseline;gap:1em}
+.cv-et{font-weight:700;color:var(--graphite);font-size:1.05em}
+.cv-ed{color:var(--beige-deep);font-weight:500;font-size:.88em;white-space:nowrap}
+.cv-es{color:var(--muted);font-size:.93em}
+.cv-role{font-weight:500;color:var(--graphite);margin-top:.15em}
+.cv-lead{font-weight:500;color:var(--graphite);margin:.6em 0 .15em}
+.cv-sub{font-weight:700;color:var(--graphite);font-size:.92em;letter-spacing:.04em;margin:.9em 0 .25em}
+.cv-ul{list-style:none;margin:.35em 0 .3em;padding:0}
+.cv-ul li{position:relative;padding-left:1.15em;margin:.2em 0}
+.cv-ul li::before{content:"";position:absolute;left:.25em;top:.62em;width:.38em;height:.38em;border-radius:50%;background:var(--beige)}
+.cv-grid{columns:2;column-gap:1.6em}
+.cv-grid li{break-inside:avoid}
+.cv-chips{display:flex;flex-wrap:wrap;gap:.45em}
+.cv-chips span{background:#F4ECDF;color:var(--graphite);border-radius:999px;padding:.25em .8em;font-size:.92em}
+.cv-gap{height:.5em}
+@media (max-width:560px){.cv-grid{columns:1}.cv-er{flex-wrap:wrap}}
+`;
+function ensureCss(){
+  if(!global.document || document.getElementById("tlnt-cv-css")) return;
+  const st=document.createElement("style"); st.id="tlnt-cv-css"; st.textContent=CV_CSS;
+  document.head.appendChild(st);
+}
+function richHtml(t){
+  const kv=kvParts(t);
+  return kv ? `<b>${escapeHtml(kv.k)}:</b> ${escapeHtml(kv.v)}` : escapeHtml(t);
+}
+function blocksHtml(sec){
+  let html="", ul=[];
+  const flushUl=()=>{ if(ul.length){ html+=`<ul class="cv-ul">${ul.map(t=>`<li>${richHtml(t)}</li>`).join("")}</ul>`; ul=[]; } };
+  sec.blocks.forEach(b=>{
+    if(b.t!=="li") flushUl();
+    if(b.t==="li") ul.push(b.text);
+    else if(b.t==="p") html+=`<p class="cv-p">${richHtml(b.text)}</p>`;
+    else if(b.t==="kv") html+=`<p class="cv-p cv-kv"><b>${escapeHtml(b.k)}:</b> ${escapeHtml(b.text)}</p>`;
+    else if(b.t==="sub") html+=`<div class="cv-sub">${escapeHtml(b.text)}</div>`;
+    else if(b.t==="role") html+=`<div class="cv-role">${escapeHtml(b.text)}</div>`;
+    else if(b.t==="lead") html+=`<div class="cv-lead">${escapeHtml(b.text)}</div>`;
+    else if(b.t==="gap") html+=`<div class="cv-gap"></div>`;
+    else if(b.t==="entry"){
+      const date=b.date?`<span class="cv-ed">${escapeHtml(b.date)}</span>`:"";
+      html+= b.title
+        ? `<div class="cv-entry"><div class="cv-er"><span class="cv-et">${escapeHtml(b.title)}</span>${date}</div>${b.sub?`<div class="cv-es">${escapeHtml(b.sub)}</div>`:""}</div>`
+        : `<div class="cv-entry"><div class="cv-er"><span class="cv-es">${escapeHtml(b.sub)}</span>${date}</div></div>`;
+    }
+    else if(b.t==="grid"){
+      html+= b.chips
+        ? `<div class="cv-chips">${b.items.map(x=>`<span>${escapeHtml(x)}</span>`).join("")}</div>`
+        : `<ul class="cv-ul cv-grid">${b.items.map(x=>`<li>${richHtml(x)}</li>`).join("")}</ul>`;
+    }
+  });
+  flushUl();
+  return sec.box ? `<div class="cv-box">${html}</div>` : html;
 }
 function safeImg(v){ return (typeof v==="string" && /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(v)) ? v : ""; }
 function footerLeft(d){ return (d&&d.lang==="en")
   ? "Prepared by TLNT.AE - talent & recruitment agency, Dubai, UAE"
   : "Подготовлено агентством TLNT.AE - подбор персонала, Дубай, ОАЭ"; }
 function renderPreview(el, d){
-  const contacts=[d.email,d.phone,d.loc,d.link].filter(Boolean);
+  ensureCss();
+  const n=s=>normText(s).trim();
+  const contacts=[d.email,d.phone,d.loc,d.link].map(n).filter(Boolean);
   const logo=safeImg(d.logo), photo=safeImg(d.photo);
   const logoHtml = logo ? `<img class="p-logo-img" src="${logo}">` : `<div class="p-logo">TLNT<span class="dot">.</span>AE</div>`;
   const photoHtml = photo ? `<img class="p-photo" src="${photo}">` : "";
+  const personal=n(d.personal);
   el.innerHTML=`
     <div class="p-mast">${logoHtml}<div class="p-tag">Talent Agency<br>United Arab Emirates</div></div>
     <div class="p-headrow">
       <div class="p-headmain">
-        <div class="p-name">${escapeHtml(d.name||"Имя Фамилия")}</div>
-        ${d.head?`<div class="p-head">${escapeHtml(d.head)}</div>`:""}
+        <div class="p-name">${escapeHtml(n(d.name)||n(d.head)||"Имя Фамилия")}</div>
+        ${n(d.name)&&n(d.head)?`<div class="p-head">${escapeHtml(n(d.head))}</div>`:""}
         ${contacts.length?`<div class="p-contacts">${contacts.map(escapeHtml).join('<span>·</span>')}</div>`:""}
-        ${d.personal?`<div class="p-personal">${escapeHtml(d.personal).replace(/\n/g,' &nbsp;•&nbsp; ')}</div>`:""}
+        ${personal?`<div class="p-personal">${escapeHtml(personal).replace(/\n+/g,' &nbsp;·&nbsp; ')}</div>`:""}
       </div>
       ${photoHtml?`<div class="p-photowrap">${photoHtml}</div>`:""}
     </div>
-    ${(d.sections||[]).map(s=>`<div class="p-sec">${s.title?`<h3>${escapeHtml(s.title)}</h3>`:""}<div class="body">${bulletize(s.body)}</div></div>`).join("")}
+    ${layoutResume(d).map(s=>`<div class="p-sec">${s.title?`<h3>${escapeHtml(s.title)}</h3>`:""}<div class="body">${blocksHtml(s)}</div></div>`).join("")}
     <div class="p-foot"><span>${escapeHtml(footerLeft(d))}</span><span>tlnt.ae</span></div>`;
 }
 
 /* ============================ PDF build ============================ */
+// words of styled runs -> lines that fit maxW; a word wider than the line is cut
+function wrapRuns(doc, runs, maxW, size){
+  const toks=[];
+  runs.forEach(r=>String(r.t||"").split(/( )/).forEach(p=>{ if(p!=="") toks.push({t:p, f:r.f, c:r.c}); }));
+  const width=o=>{ doc.setFont("Roboto",o.f); doc.setFontSize(size); return doc.getTextWidth(o.t); };
+  const lines=[]; let cur=[], w=0;
+  const push=()=>{ while(cur.length && cur[cur.length-1].t===" ") w-=width(cur.pop()); if(cur.length) lines.push(cur); cur=[]; w=0; };
+  toks.forEach(o=>{
+    if(o.t===" "){ if(cur.length){ cur.push(o); w+=width(o); } return; }
+    let ow=width(o);
+    if(w+ow>maxW && cur.length) push();
+    while(ow>maxW && o.t.length>1){
+      let n=o.t.length-1; while(n>1 && width({t:o.t.slice(0,n), f:o.f})>maxW) n--;
+      cur.push({t:o.t.slice(0,n), f:o.f, c:o.c}); push();
+      o={t:o.t.slice(n), f:o.f, c:o.c}; ow=width(o);
+    }
+    cur.push(o); w+=ow;
+  });
+  push();
+  return lines;
+}
+function drawRunLine(doc, line, x, y, size){
+  const segs=[];
+  line.forEach(o=>{ const s=segs[segs.length-1]; if(s && s.f===o.f && s.c===o.c) s.t+=o.t; else segs.push({t:o.t, f:o.f, c:o.c}); });
+  segs.forEach(s=>{ doc.setFont("Roboto",s.f); doc.setFontSize(size); doc.setTextColor(s.c[0],s.c[1],s.c[2]); doc.text(s.t,x,y); x+=doc.getTextWidth(s.t); });
+}
 async function buildResumeDoc(d, cb){
   const f=await ensureFonts(cb);
   const { jsPDF }=global.jspdf;
@@ -663,99 +982,200 @@ async function buildResumeDoc(d, cb){
   doc.addFileToVFS("R-b.ttf",f.bold); doc.addFont("R-b.ttf","Roboto","bold");
 
   const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
-  const M=48, CW=W-M*2, BOTTOM=H-50;
-  const GRAPH=[63,58,51], INK=[74,68,60], MUT=[124,116,104], BEI=[176,141,87], BEID=[154,120,66], LINE=[231,222,207];
-  let y=0;
-  const setC=c=>doc.setTextColor(c[0],c[1],c[2]);
+  const M=48, CW=W-M*2, BOTTOM=H-60;
+  const GRAPH=[63,58,51], INK=[74,68,60], MUT=[124,116,104], BEI=[176,141,87], BEID=[154,120,66], LINE=[231,222,207],
+        BOX=[250,246,239], CHIP=[244,236,223];
+  const BS=10, LH=14.4;                      // body size and line step
+  const base=s=>s*1.02;                      // baseline offset inside a line box
+  const n=s=>normText(s).trim();
+  let y=0, top=0;
 
+  const font=(st,sz,c)=>{ doc.setFont("Roboto",st); doc.setFontSize(sz); doc.setTextColor(c[0],c[1],c[2]); };
+  const put=(t,x,yy,st,sz,c,opt)=>{ font(st,sz,c); doc.text(t,x,yy,opt||{}); };
+  const tw=(t,st,sz)=>{ doc.setFont("Roboto",st); doc.setFontSize(sz); return doc.getTextWidth(t); };
+  const fill=c=>doc.setFillColor(c[0],c[1],c[2]);
+  const stroke=(c,w)=>{ doc.setDrawColor(c[0],c[1],c[2]); doc.setLineWidth(w); };
+  const runsOf=(t,c)=>{ const kv=kvParts(t); return kv ? [{t:kv.k+": ", f:"medium", c:GRAPH},{t:kv.v, f:"normal", c:c||INK}] : [{t, f:"normal", c:c||INK}]; };
+  const dot=(x,yy)=>{ fill(BEI); doc.circle(x, yy-3.3, 1.55, "F"); };
+
+  const runHead=[n(d.name), n(d.head)].filter(Boolean).join("  ·  ");
   function masthead(first){
-    doc.setFont("Roboto","bold"); doc.setFontSize(first?16:12); setC(GRAPH);
     const baseY=first?50:38;
+    font("bold", first?16:11.5, GRAPH);
     doc.text("TLNT", M, baseY, {charSpace:1.1});
-    let tw=doc.getTextWidth("TLNT");
-    setC(BEI); doc.text(".", M+tw+2, baseY); const dw=doc.getTextWidth(".");
-    setC(GRAPH); doc.text("AE", M+tw+dw+3, baseY,{charSpace:1.1});
-    doc.setFont("Roboto","normal"); doc.setFontSize(first?7.5:6.5); setC(BEID);
-    doc.text("TALENT AGENCY · UAE", W-M, baseY-6, {align:"right",charSpace:1.4});
-    const ly=first?60:46;
-    doc.setDrawColor(BEI[0],BEI[1],BEI[2]); doc.setLineWidth(1.1); doc.line(M,ly,W-M,ly);
-    return ly+ (first?20:16);
+    const t1=doc.getTextWidth("TLNT");
+    font("bold", first?16:11.5, BEI); doc.text(".", M+t1+2, baseY); const dw=doc.getTextWidth(".");
+    font("bold", first?16:11.5, GRAPH); doc.text("AE", M+t1+dw+3, baseY, {charSpace:1.1});
+    if(first) put("TALENT AGENCY · UAE", W-M, baseY-6, "normal", 7.5, BEID, {align:"right", charSpace:1.4});
+    else if(runHead){
+      let t=runHead; font("normal",8,MUT);
+      while(t.length>4 && doc.getTextWidth(t)>CW-110) t=t.slice(0,-2);
+      if(t!==runHead) t=t.replace(/\s*\S?$/,"")+"...";
+      doc.text(t, W-M, baseY-1, {align:"right"});
+    }
+    const ly=first?60:47;
+    stroke(BEI, first?1.1:.8); doc.line(M,ly,W-M,ly);
+    return ly+(first?20:18);
   }
-  function footer(){
-    doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(.6); doc.line(M,H-40,W-M,H-40);
-    doc.setFont("Roboto","normal"); doc.setFontSize(7.5); setC(MUT);
-    doc.text(footerLeft(d), M, H-28);
-    doc.text("tlnt.ae", W-M, H-28, {align:"right"});
-  }
-  function newPage(){ footer(); doc.addPage(); y=masthead(false); }
-  function need(h){ if(y+h>BOTTOM){ newPage(); } }
+  function newPage(){ doc.addPage(); y=masthead(false); top=y; }
+  function need(h){ if(y+h>BOTTOM && y>top+1) newPage(); }
 
   y=masthead(true);
 
-  // ---- header row: name/contacts left, photo right ----
-  let photoW=0, photoH=0, photoX=0;
+  // ---- header: name, position, contacts on the left; photo with rounded corners on the right ----
+  let photoW=0, photoH=0;
   const photoSafe=safeImg(d.photo);
   if(photoSafe){
     try{
-      const props=doc.getImageProperties(photoSafe);
-      const boxW=92, boxH=118;
-      const r=Math.min(boxW/props.width, boxH/props.height);
-      photoW=props.width*r; photoH=props.height*r;
-      photoX=W-M-photoW;
-      doc.addImage(photoSafe,"JPEG",photoX,y,photoW,photoH);
-    }catch(e){ photoW=0; }
+      const pr=doc.getImageProperties(photoSafe);
+      photoW=90; photoH=112;
+      const px=W-M-photoW, py=y, r=Math.max(photoW/pr.width, photoH/pr.height), iw=pr.width*r, ih=pr.height*r;
+      doc.saveGraphicsState();
+      doc.roundedRect(px,py,photoW,photoH,8,8,null); doc.clip(); doc.discardPath();
+      doc.addImage(photoSafe, pr.fileType||"JPEG", px-(iw-photoW)/2, py-(ih-photoH)*0.25, iw, ih);   // cover, keep the face
+      doc.restoreGraphicsState();
+      stroke(LINE,.8); doc.roundedRect(px,py,photoW,photoH,8,8,"S");
+    }catch(e){ photoW=0; photoH=0; }
   }
-  const textW = photoW? CW-photoW-16 : CW;
-  let leftY=y;
-  doc.setFont("Roboto","bold"); doc.setFontSize(18); setC(GRAPH);
-  doc.splitTextToSize(d.name||"-", textW).forEach(l=>{ doc.text(l,M,leftY+15); leftY+=21; });
-  leftY+=1;
-  if(d.head){ doc.setFont("Roboto","normal"); doc.setFontSize(10.5); setC(MUT);
-    doc.splitTextToSize(d.head,textW).forEach(l=>{ doc.text(l,M,leftY+9); leftY+=13; }); }
-  const contacts=[d.email,d.phone,d.loc,d.link].filter(Boolean);
+  const textW = photoW? CW-photoW-20 : CW;
+  let ly=y+2;
+  // no name in the source (an anonymous export): the position becomes the big title
+  const bigName=n(d.name)||n(d.head), headLine=n(d.name)?n(d.head):"";
+  if(bigName) wrapRuns(doc,[{t:bigName, f:"bold", c:GRAPH}], textW, 22).forEach(l=>{ drawRunLine(doc,l,M,ly+19,22); ly+=26; });
+  if(headLine){
+    ly+=1;
+    wrapRuns(doc,[{t:headLine, f:"medium", c:BEID}], textW, 11.5).forEach(l=>{ drawRunLine(doc,l,M,ly+11,11.5); ly+=15.5; });
+  }
+  const contacts=[d.email,d.phone,d.loc,d.link].map(n).filter(Boolean);
   if(contacts.length){
-    leftY+=4; doc.setFontSize(8.7); let x=M;
-    contacts.forEach((c,idx)=>{ const tw=doc.getTextWidth(c);
-      if(x+tw>M+textW){ leftY+=11; x=M; }
-      doc.setFont("Roboto","normal"); setC(INK); doc.text(c,x,leftY+7); x+=tw;
-      if(idx<contacts.length-1){ setC(BEI); doc.text("  ·  ",x,leftY+7); x+=doc.getTextWidth("  ·  "); } });
-    leftY+=12;
-  }
-  if(d.personal){ doc.setFont("Roboto","normal"); doc.setFontSize(8.3); setC(MUT);
-    doc.splitTextToSize(d.personal.replace(/\n/g,"  •  "),textW).forEach(l=>{ leftY+=10; doc.text(l,M,leftY+3); }); leftY+=6; }
-
-  y=Math.max(leftY, y+photoH) + 8;
-  doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(.8); doc.line(M,y,W-M,y); y+=14;
-
-  // ---- sections (compact) ----
-  (d.sections||[]).forEach(s=>{
-    if(s.title){
-      need(24);
-      doc.setFont("Roboto","bold"); doc.setFontSize(9); setC(BEID);
-      const title=s.title.toUpperCase();
-      doc.text(title,M,y+8,{charSpace:1.2});
-      const tw=doc.getTextWidth(title)+title.length*1.2;
-      doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(.6); doc.line(M+tw+10,y+5,W-M,y+5);
-      y+=17;
-    }
-    doc.setFont("Roboto","normal"); doc.setFontSize(9); setC(INK);
-    s.body.split("\n").forEach(raw=>{
-      const t=raw.replace(/\s+$/,"");
-      if(!t.trim()){ y+=4; return; }
-      const bullet=/^[-•*\u2013▪‣·]\s+/.test(t.trim());
-      const indent=bullet?13:0;
-      const txt=bullet?t.trim().replace(/^[-•*\u2013▪‣·]\s+/,""):t;
-      doc.splitTextToSize(txt,CW-indent).forEach((l,li)=>{
-        need(11.5);
-        if(bullet&&li===0){ setC(BEI); doc.text("•",M,y+8); setC(INK); }
-        doc.text(l,M+indent,y+8); y+=11.5;
-      });
-      if(bullet) y+=0.5;
+    ly+=6; let x=M; const cs=9.2;
+    contacts.forEach((c,idx)=>{
+      const w=tw(c,"normal",cs);
+      if(x>M && x+w>M+textW){ ly+=13; x=M; }
+      put(c,x,ly+9,"normal",cs,INK); x+=w;
+      if(idx<contacts.length-1){ put("  ·  ",x,ly+9,"bold",cs,BEI); x+=tw("  ·  ","bold",cs); }
     });
-    y+=9;
+    ly+=14;
+  }
+  if(d.personal){
+    ly+=3;
+    wrapRuns(doc,[{t:n(d.personal).replace(/\n+/g,"  ·  "), f:"normal", c:MUT}], textW, 8.8).forEach(l=>{ drawRunLine(doc,l,M,ly+9,8.8); ly+=12; });
+  }
+  y=Math.max(ly, y+photoH)+14;
+  stroke(LINE,.8); doc.line(M,y,W-M,y); y+=20; top=y;
+
+  // ---- sections ----
+  function sectionTitle(t){
+    need(24+LH*3);
+    if(y>top) y+=6;
+    fill(BEI); doc.rect(M, y+1, 2.8, 11, "F");
+    const T=t.toUpperCase();
+    put(T, M+10, y+10.6, "bold", 10, BEID, {charSpace:1.15});
+    const x2=M+10+tw(T,"bold",10)+T.length*1.15+10;
+    if(x2<W-M){ stroke(LINE,.6); doc.line(x2, y+6.6, W-M, y+6.6); }
+    y+=24;
+  }
+  function textLines(lines, x, size, lh){
+    lines.forEach(l=>{ need(lh); drawRunLine(doc,l,x,y+base(size),size); y+=lh; });
+  }
+  function drawBlock(b, prev){
+    if(b.t==="gap"){ y+=5; return; }
+    if(b.t==="p"){ textLines(wrapRuns(doc,runsOf(b.text),CW,BS), M, BS, LH); y+=3; return; }
+    if(b.t==="kv"){ textLines(wrapRuns(doc,[{t:b.k+": ",f:"medium",c:GRAPH},{t:b.text,f:"normal",c:INK}],CW,BS), M, BS, LH); y+=3; return; }
+    if(b.t==="li"){
+      const ls=wrapRuns(doc,runsOf(b.text),CW-14,BS);
+      need(Math.min(ls.length,2)*LH);
+      ls.forEach((l,j)=>{ need(LH); if(j===0) dot(M+4.5, y+base(BS)); drawRunLine(doc,l,M+14,y+base(BS),BS); y+=LH; });
+      y+=2; return;
+    }
+    if(b.t==="sub"){ need(LH*2.6); y+= prev? 6 : 0; put(b.text, M, y+base(9.6), "bold", 9.6, GRAPH, {charSpace:.5}); y+=LH+2; return; }
+    if(b.t==="role"){ textLines(wrapRuns(doc,[{t:b.text,f:"medium",c:GRAPH}],CW,BS), M, BS, LH); y+=2; return; }
+    if(b.t==="lead"){ need(LH*2); y+= prev && prev.t!=="gap" ? 4 : 0; textLines(wrapRuns(doc,[{t:b.text,f:"medium",c:GRAPH}],CW,BS), M, BS, LH); y+=1; return; }
+    if(b.t==="entry"){
+      const TS=10.8, DS=9;
+      const dW=b.date? tw(b.date,"medium",DS)+16 : 0;
+      const tl=b.title? wrapRuns(doc,[{t:b.title,f:"bold",c:GRAPH}], CW-dW, TS) : [];
+      const sl=b.sub? wrapRuns(doc,[{t:b.sub,f:"normal",c:MUT}], b.title? CW : CW-dW, 9.6) : [];
+      y+= !prev ? 0 : prev.t==="gap" ? 4 : 10;
+      need(Math.max(tl.length,1)*15 + (b.title? sl.length*13 : 0) + LH*2);
+      if(tl.length){
+        tl.forEach((l,j)=>{ drawRunLine(doc,l,M,y+base(TS),TS); if(j===0 && b.date) put(b.date, W-M, y+base(TS), "medium", DS, BEID, {align:"right"}); y+=15; });
+        sl.forEach(l=>{ drawRunLine(doc,l,M,y+base(9.6),9.6); y+=13; });
+      } else {
+        if(sl.length) drawRunLine(doc,sl[0],M,y+base(9.6),9.6);
+        if(b.date) put(b.date, W-M, y+base(9.6), "medium", DS, BEID, {align:"right"});
+        y+=14;
+        sl.slice(1).forEach(l=>{ drawRunLine(doc,l,M,y+base(9.6),9.6); y+=13; });
+      }
+      y+=3; return;
+    }
+    if(b.t==="grid"){
+      if(b.chips){
+        const cs=9.4, ch=18, pad=9, gap=6; let x=M;
+        need(ch+4);
+        b.items.forEach(it=>{
+          const w=Math.min(tw(it,"normal",cs)+pad*2, CW);
+          if(x>M && x+w>W-M+0.1){ x=M; y+=ch+gap; need(ch+2); }
+          fill(CHIP); doc.roundedRect(x,y,w,ch,ch/2,ch/2,"F");
+          put(it, x+pad, y+ch/2+cs*0.35, "normal", cs, GRAPH);
+          x+=w+gap;
+        });
+        y+=ch+6; return;
+      }
+      const gap=22, colW=(CW-gap)/2;
+      // two independent columns (read down the left one, then the right one), split where their heights are closest
+      const wr=b.items.map(t=>wrapRuns(doc,runsOf(t),colW-14,BS));
+      const hs=wr.map(ls=>ls.length*LH+2), total=hs.reduce((a,h)=>a+h,0);
+      let k=0, acc=0, best=Infinity;
+      for(let j=0;j<=wr.length;j++){ const d2=Math.abs(total-2*acc); if(d2<best){ best=d2; k=j; } if(j<wr.length) acc+=hs[j]; }
+      const colH=Math.max(hs.slice(0,k).reduce((a,h)=>a+h,0), hs.slice(k).reduce((a,h)=>a+h,0));
+      if(colH<=BOTTOM-top-10){
+        need(colH);
+        [[0,k],[k,wr.length]].forEach(([a,z],ci)=>{
+          const x=M+ci*(colW+gap); let yy=y;
+          for(let j=a;j<z;j++){ dot(x+4.5, yy+base(BS)); wr[j].forEach((l,li)=>drawRunLine(doc,l,x+14,yy+base(BS)+li*LH,BS)); yy+=hs[j]; }
+        });
+        y+=colH; return;
+      }
+      for(let i=0;i<b.items.length;i+=2){      // taller than a page: rows that can break across pages
+        const cols=[b.items[i], b.items[i+1]].map(t=> t==null ? [] : wrapRuns(doc,runsOf(t),colW-14,BS));
+        const rows=Math.max(cols[0].length, cols[1].length);
+        need(rows*LH);
+        cols.forEach((ls,ci)=>{ if(!ls.length) return; const x=M+ci*(colW+gap);
+          dot(x+4.5, y+base(BS)); ls.forEach((l,j)=>drawRunLine(doc,l,x+14,y+base(BS)+j*LH,BS)); });
+        y+=rows*LH+2;
+      }
+      return;
+    }
+  }
+  function drawBox(sec){
+    // summary / profile: light panel with a gold rule; falls back to plain text when it does not fit one page
+    const parts=sec.blocks.filter(b=>b.t==="p").map(b=>wrapRuns(doc,runsOf(b.text),CW-28,BS));
+    const h=parts.reduce((a,ls)=>a+ls.length*LH,0)+(parts.length-1)*5+16;
+    if(h>BOTTOM-top-10){ sec.blocks.forEach((b,i)=>drawBlock(b, sec.blocks[i-1])); return; }
+    need(h);
+    fill(BOX); doc.roundedRect(M,y,CW,h,5,5,"F");
+    fill(BEI); doc.rect(M,y,2.8,h,"F");
+    let yy=y+8;
+    parts.forEach((ls,pi)=>{ if(pi) yy+=5; ls.forEach(l=>{ drawRunLine(doc,l,M+16,yy+base(BS),BS); yy+=LH; }); });
+    y+=h+4;
+  }
+
+  layoutResume(d).forEach(sec=>{
+    if(sec.title) sectionTitle(sec.title);
+    if(sec.box) drawBox(sec);
+    else sec.blocks.forEach((b,i)=>drawBlock(b, sec.blocks[i-1]));
+    y+=10;
   });
 
-  footer();
+  // ---- footer on every page: agency line + page number ----
+  const pages=doc.getNumberOfPages();
+  for(let p=1;p<=pages;p++){
+    doc.setPage(p);
+    stroke(LINE,.6); doc.line(M,H-42,W-M,H-42);
+    put(footerLeft(d), M, H-29, "normal", 7.6, MUT);
+    put(pages>1 ? `tlnt.ae  ·  ${p} / ${pages}` : "tlnt.ae", W-M, H-29, "normal", 7.6, MUT, {align:"right"});
+  }
   return doc;
 }
 function uniqueStamp(){
@@ -781,7 +1201,7 @@ function decodePayload(str){
 
 global.TLNT = {
   ensureFonts, extractFile, extractPdf, reconstructLines, joinRowItems, collapseTracked, cleanText, parseResume, isHeader, findPhone,
-  renderPreview, buildResumeDoc, downloadResumePdf,
+  renderPreview, buildResumeDoc, downloadResumePdf, layoutResume, normText, reflowText, BULLET_CHARS,
   encodePayload, decodePayload, imgToDataUrl
 };
 })(window);
