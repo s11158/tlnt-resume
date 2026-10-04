@@ -109,6 +109,8 @@ const HEAD_MAP = [
  [/^(интересы|хобби|увлечения)(?![a-zа-яё])/i,"Интересы"],
  [/^(publications?)(?![a-zа-яё])/i,"Publications"],
  [/^(references?)(?![a-zа-яё])/i,"References"],
+ [/^(testimonials?)(?![a-zа-яё])/i,"Testimonials"],
+ [/^(отзывы?)(?![a-zа-яё])/i,"Отзывы"],
  [/^(рекомендации)(?![a-zа-яё])/i,"Рекомендации"],
  [/^(дополнительная информация)(?![a-zа-яё])/i,"Дополнительно"],
  [/^(контакты|контактная информация|контактные данные|способы связаться|способы связи|связаться со мной)(?![a-zа-яё])/i,"__CONTACTS__"],
@@ -490,7 +492,7 @@ function pageItems(items){
     const key=Math.round(it.transform[4])+"|"+Math.round(it.transform[5])+"|"+it.str;
     if(seen.has(key)) return; seen.add(key);
     its.push({x:it.transform[4], y:it.transform[5], w:it.width||0, s:it.str,
-      fs:it.height||Math.hypot(it.transform[2],it.transform[3])||0}); });
+      fs:it.height||Math.hypot(it.transform[2],it.transform[3])||0, fn:it.fontName||""}); });
   return its;
 }
 function rowsOf(its){
@@ -531,24 +533,161 @@ function findSidebarGutter(its, pageW, pageH){
 function stripIcons(s){ return String(s||"").replace(/[-]/g, c=>BULLET_CHARS.includes(c)?c:"").trim(); }
 const isHeadLine=l=>{ const t=unglueHeading(stripIcons(l)); return !!(t && (isHeader(t)||capsHeader(t))); };
 // Lines of one column, top-down. Two headings side by side inside the column ("Languages" | "About me") open two
-// sub-columns that are read one after the other instead of row by row.
+// sub-columns that are read one after the other instead of row by row. A row flagged .gap (see mainColumnRows)
+// becomes a blank line.
 function columnLines(rowItems){
   const out=[]; let sub=null;
   const flush=()=>{ if(sub){ out.push(...sub.L, ...sub.R); sub=null; } };
   const x0=p=>Math.min.apply(null,p.map(i=>i.x)), x1=p=>Math.max.apply(null,p.map(i=>i.x+i.w));
+  const geo=p=>({s:joinRowItems(p), x0:x0(p), x1:x1(p), y:p[0].y, fs:p[0].fs||10,
+                 fa:p.slice().sort((a,b)=>a.x-b.x)[0].fn, fz:p.slice().sort((a,b)=>b.x-a.x)[0].fn});
   for(const its of rowItems){
+    if(its.gap){ if(!sub) out.push(""); continue; }        // side-by-side blocks stay open across their own spacing
     if(!its.length) continue;
-    const parts=splitRowAtGaps(its), txt=parts.map(joinRowItems);
-    if(parts.length===2 && !sub && isHeadLine(txt[0]) && isHeadLine(txt[1])){ sub={x:x0(parts[1]), L:[txt[0]], R:[txt[1]]}; continue; }
+    const parts=splitRowAtGaps(its), ln=parts.map(geo);
+    if(parts.length===2 && !sub && isHeadLine(ln[0].s) && isHeadLine(ln[1].s)){ sub={x:ln[1].x0, L:[ln[0]], R:[ln[1]]}; continue; }
     if(sub){
-      if(parts.length===2 && Math.abs(x0(parts[1])-sub.x)<40){ sub.L.push(txt[0]); sub.R.push(txt[1]); continue; }
-      if(parts.length===1 && x0(its)>=sub.x-10){ sub.R.push(txt[0]); continue; }
-      if(parts.length===1 && x1(its)<sub.x){ sub.L.push(txt[0]); continue; }
+      if(parts.length===2 && Math.abs(ln[1].x0-sub.x)<40){ sub.L.push(ln[0]); sub.R.push(ln[1]); continue; }
+      if(parts.length===1 && x0(its)>=sub.x-10){ sub.R.push(ln[0]); continue; }
+      if(parts.length===1 && x1(its)<sub.x){ sub.L.push(ln[0]); continue; }
       flush();
     }
-    out.push(...txt.filter(Boolean));
+    out.push(...ln.filter(o=>o.s));
   }
   flush();
+  return joinWrapped(out).map(o=>o ? o.s : "");
+}
+// A short line the column wrapped (the next line's first word did not fit) is joined back when it is a wrapped
+// heading or caps title ("EDUCATION &" / "TRAINING", "NATIONAL RESEARCH" / "UNIVERSITY") or ends in a connector
+// ("... Treatments with" / "Fotona"). Lists of short items stay one item per line.
+const CONN_END=/(?:[,&+\/]|\p{L}-|(?<![\p{L}])(?:and|or|of|in|with|for|the|at|to|on|и|или|в|во|на|по|для|с|со|к|от|из))$/iu;
+const CONN_START=/^(?:&|and|of|и)(?![\p{L}])/iu;
+const INST_START=/^(?:university|universit[àéä]t?|institute|academy|college|school|университет|институт|академия|колледж|техникум|училище)(?![\p{L}])/iu;
+function joinWrapped(lines){
+  const ls=lines.filter(Boolean);
+  if(ls.length<2) return lines;
+  const colR=Math.max.apply(null,ls.map(o=>o.x1));
+  const caps=t=>!/\p{Ll}/u.test(t) && (t.match(/\p{Lu}/gu)||[]).length>=3;
+  const wrapped=(a,b)=>{
+    if(!a || !b || Math.abs(a.fs-b.fs)>0.6 || Math.abs(a.x0-b.x0)>3 || a.y<=b.y || a.y-b.y>1.7*a.fs) return false;
+    if(a.fz && b.fa && a.fz!==b.fa) return false;                                   // bold title over a regular line
+    if(/[.!?;:]$/.test(a.s) || BUL_RE.test(b.s) || a.s.length>70 || b.s.length>70) return false;
+    const cap=caps(a.s) && caps(b.s);
+    if(cap && ((a.s+" "+b.s).length>90 || (isHeadLine(a.s) && !CONN_END.test(a.s)))) return false;
+    // "AND OPTICS", "KYRGYZ AVIATION" / "UNIVERSITY", "BACHELOR DEGREE IN" / "SOCIOLOGY"
+    if(CONN_START.test(b.s) || (cap && (INST_START.test(b.s) || CONN_END.test(a.s)))) return true;
+    // the next line's first word would not have fitted after this one; caps titles are tracked wider, allow 1em
+    const w0=b.s.split(" ")[0], wordW=(b.x1-b.x0)*w0.length/Math.max(1,b.s.length);
+    if(a.x1+wordW+(cap ? -a.fs : 0.3*a.fs)<=colR+1) return false;                   // the word fitted: a deliberate break
+    return cap || CONN_END.test(a.s);
+  };
+  const out=[];
+  for(const o of lines){
+    const a=out[out.length-1];
+    if(o && wrapped(a,o)){ out[out.length-1]=Object.assign({},a,{s:a.s+(/\p{L}-$/u.test(a.s)?"":" ")+o.s, x1:o.x1, y:o.y}); continue; }
+    out.push(o);
+  }
+  return out;
+}
+/* ---- period column inside the main column: "Jan / 2025 - / present" stacked at the left of each job's duties.
+   Read row by row its pieces land between the duty lines; they are taken out and joined per job (mainColumnRows
+   puts each back as one line). ---- */
+let PERIOD_PIECE_RE=null;
+function periodPiece(s){
+  PERIOD_PIECE_RE=PERIOD_PIECE_RE||new RegExp(`^(?:\\s|[\\p{Pd}.,/()]|${MON_P}|\\d{1,4}|${NOW_P}|time|to|по|до|с|from|since|гг?\\.?)+$`,"iu");
+  const t=String(s||"").trim();
+  return PERIOD_PIECE_RE.test(glueSpaced(t)||t);                        // designer exports space the letters: "J a n"
+}
+function periodBand(its){
+  const items=its.filter(i=>i.w>0);
+  if(items.length<12) return null;
+  const left=Math.min.apply(null,items.map(i=>i.x)), cw=Math.max.apply(null,items.map(i=>i.x+i.w))-left;
+  if(cw<200) return null;
+  const cand=items.filter(i=>i.x<left+0.2*cw && i.w<0.2*cw && periodPiece(i.s));
+  if(cand.length<4 || cand.filter(i=>YEAR_RE.test(glueSpaced(i.s.trim())||i.s)).length<2) return null;
+  const bandR=Math.max.apply(null,cand.map(i=>i.x+i.w));
+  if(bandR>left+0.25*cw) return null;
+  // the band holds nothing else, and the duties run beside it on the same rows
+  if(items.some(i=>!cand.includes(i) && i.x+i.w<=bandR+1)) return null;
+  if(cand.filter(c=>items.some(i=>!cand.includes(i) && i.x>bandR && Math.abs(i.y-c.y)<3.2)).length<2) return null;
+  const blocks=[];
+  cand.slice().sort((a,b)=>b.y-a.y||a.x-b.x).forEach(c=>{
+    const b=blocks[blocks.length-1];
+    if(b && b.last.y-c.y<=2.2*(c.fs||10)){ b.its.push(c); b.last=c; } else blocks.push({its:[c], last:c});
+  });
+  const out=blocks.filter(b=>b.its.some(i=>YEAR_RE.test(glueSpaced(i.s.trim())||i.s))).map(b=>({y:b.its[0].y, fs:b.its[0].fs||10, x:left, its:b.its,
+    s:rowsOf(b.its).map(r=>joinRowItems(r.its)).join(" ").replace(/\s{2,}/g," ").trim()}));
+  return out.length ? out : null;
+}
+// Place + period pushed to the right edge of the column and wrapped onto 2-3 short lines ("DUBAI, UAE 04.2025" /
+// "- 05.2026"), the job title on the left between them: joined into one line at the first piece.
+function rightStacks(rows){
+  const all=[].concat(...rows.map(r=>r.its)).filter(i=>i.w>0);
+  if(all.length<8) return [];
+  const colL=Math.min.apply(null,all.map(i=>i.x)), colR=Math.max.apply(null,all.map(i=>i.x+i.w)), cw=colR-colL;
+  const lastPart=r=>{ const ps=splitRowAtGaps(r.its); return ps[ps.length-1]; };
+  const flushRight=p=>{
+    const x0=Math.min.apply(null,p.map(i=>i.x)), x1=Math.max.apply(null,p.map(i=>i.x+i.w));
+    return x1>=colR-Math.max(6,0.06*cw) && x0>colL+0.55*cw && joinRowItems(p).length<=34 ? {x0,x1} : null;
+  };
+  const found=[];
+  for(let i=0;i<rows.length;i++){
+    if(!rows[i].its.length || found.some(f=>f.rows.includes(i))) continue;
+    const p0=lastPart(rows[i]), f0=flushRight(p0); if(!f0) continue;
+    const st=[{r:i,p:p0}], fs=p0[0].fs||10; let x0=f0.x0, lastY=rows[i].y;
+    for(let j=i+1;j<rows.length;j++){
+      if(lastY-rows[j].y>1.9*fs) break;
+      if(!rows[j].its.length) continue;
+      const p=lastPart(rows[j]), f=flushRight(p);
+      if(f && (Math.abs(f.x1-f0.x1)<=3 || Math.abs(f.x0-f0.x0)<=3)){ st.push({r:j,p}); x0=Math.min(x0,f.x0); lastY=rows[j].y; continue; }
+      if(rows[j].its.some(it=>it.x+it.w>x0-4)) break;                     // other text reaches into the right zone
+    }
+    if(st.length<2 || st.length>3) continue;
+    const pieces=st.map(o=>joinRowItems(o.p));
+    if(pieces.filter(t=>RANGE_RE.test(normText(t))).length>1) continue;     // a list of complete periods, not one wrapped
+    const s=pieces.join(" ").replace(/\s{2,}/g," ").trim();
+    if(!isMeta(normText(s))) continue;
+    found.push({rows:st.map(o=>o.r), parts:st.map(o=>o.p), s, x:x0, w:colR-x0, fs});
+  }
+  return found;
+}
+// One column of a sidebar page: period column and right-hand stacks become one line each, and a blank line goes
+// where the column leaves extra space between blocks (after its first heading) and before each job's first line,
+// so the parser sees where every job begins.
+function columnRows(rows, band){
+  // rows of this column alone: page rows are anchored on the other column's baselines and would blur the spacing
+  let rs=rowsOf([].concat(...rows.map(r=>r.its))).map(r=>({y:r.y, its:r.its}));
+  const steps=[]; for(let i=1;i<rs.length;i++){ const d=rs[i-1].y-rs[i].y; if(d>0) steps.push(d); }
+  steps.sort((a,b)=>a-b);
+  const med=steps.length ? steps[steps.length>>1] : 0;
+  const starts=new Set();
+  // the job starts at the widest of the gaps above the period line and the 1-2 title lines over it
+  const entryStart=k=>{
+    if(!med) return;
+    let best=-1, bg=1.35*med;
+    for(const j of [k,k-1,k-2]) if(j>0 && j<rs.length && rs[j-1].y-rs[j].y>bg){ bg=rs[j-1].y-rs[j].y; best=j; }
+    if(best>0) starts.add(rs[best]);
+  };
+  rightStacks(rs).forEach(f=>{
+    f.parts.forEach((p,n)=>{ const its=rs[f.rows[n]].its; p.forEach(it=>{ const k=its.indexOf(it); if(k>=0) its.splice(k,1); }); });
+    rs[f.rows[0]].its.push({x:f.x, y:rs[f.rows[0]].y, w:f.w, s:f.s, fs:f.fs, fn:""});
+    entryStart(f.rows[0]);
+  });
+  rs=rs.filter(r=>r.its.length);
+  (band||[]).forEach(b=>{
+    let k=rs.findIndex(r=>r.y<=b.y+1.5); if(k<0) k=rs.length;
+    entryStart(k);
+    rs.splice(k,0,{y:b.y, its:[{x:b.x, y:b.y, w:0, s:b.s, fs:b.fs, fn:""}]});
+  });
+  if(med){
+    let headSeen=false;
+    rs.forEach((r,i)=>{
+      if(headSeen && i>0 && rs[i-1].y-r.y>1.5*med) starts.add(r);
+      if(!headSeen && rowLines(r.its).some(isHeadLine)) headSeen=true;
+    });
+  }
+  const out=[];
+  rs.forEach(r=>{ if(starts.has(r)){ const g=[]; g.gap=true; out.push(g); } if(r.its.length) out.push(r.its); });
   return out;
 }
 // {head, main, side, gutter} for a sidebar page, null for any other layout (single column, tables, hh.ru meta column).
@@ -559,6 +698,8 @@ function sidebarLayout(its, pageW, pageH, firstPage, prev){
   // an item that runs into the gutter belongs to the column holding most of it (a long e-mail in the sidebar)
   const sideOf=it=> it.x+it.w<=g.mid ? "L" : it.x>=g.mid ? "R" : (g.mid-it.x>=it.x+it.w-g.mid ? "L" : "R");
   const sk=g.side, mk=g.side==="L"?"R":"L";
+  const band=periodBand(its.filter(i=>sideOf(i)===mk)), inBand=new Set(band ? [].concat(...band.map(b=>b.its)) : []);
+  if(inBand.size) its=its.filter(i=>!inBand.has(i));
   const rows=rowsOf(its).map(r=>{ const by={L:[],R:[]}; r.its.forEach(i=>by[sideOf(i)].push(i)); return {y:r.y, all:r.its, L:by.L, R:by.R}; });
   const narrow=[].concat(...rows.map(r=>rowLines(r[sk])));
   // a sidebar has its own headings or the contacts; a table column (dates | events) and stray line ends have neither
@@ -575,8 +716,8 @@ function sidebarLayout(its, pageW, pageH, firstPage, prev){
     if(k>0 && rows[k].y>=pageH*0.45) hi=k;
   }
   return { head:[].concat(...rows.slice(0,hi).map(r=>rowLines(r.all))),
-           main:columnLines(rows.slice(hi).map(r=>r[mk])),
-           side:columnLines(rows.slice(hi).map(r=>r[sk])), gutter:g };
+           main:columnLines(columnRows(rows.slice(hi).map(r=>({y:r.y, its:r[mk]})), band)),
+           side:columnLines(columnRows(rows.slice(hi).map(r=>({y:r.y, its:r[sk]})), null)), gutter:g };
 }
 // One page: the sidebar reading order when the page has a sidebar, otherwise the classic line reconstruction.
 function pageLayout(items, pageW, pageH, firstPage, prevGutter){
@@ -588,6 +729,13 @@ function pageLayout(items, pageW, pageH, firstPage, prevGutter){
 // column that continues on page 2 never lands inside a sidebar section.
 function assembleLayouts(pages){
   const head=[], main=[], side=[];
+  // a page number alone on the last line of a page: "2", "- 2 -", "II"
+  const dropPageNo=ls=>{
+    if(!ls) return;
+    let k=ls.length-1; while(k>=0 && !String(ls[k]).trim()) k--;
+    if(k>0 && /^[\s\p{Pd}]*(?:\d{1,3}|[IVX]{1,5})[\s\p{Pd}]*$/u.test(ls[k])) ls.splice(k,1);
+  };
+  pages.forEach(pg=>{ dropPageNo(pg.lines); dropPageNo(pg.main); dropPageNo(pg.side); });
   pages.forEach(pg=>{
     if(pg.lines){ main.push(...pg.lines, ""); return; }
     head.push(...pg.head); main.push(...pg.main, ""); side.push(...pg.side, "");
@@ -1008,7 +1156,7 @@ function normText(s){
 }
 const MON_P="(?<![\\p{L}])(?:янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\\p{L}*\\.?";
 const YR_P="(?<!\\d)(?:19|20)\\d{2}(?!\\d)";
-const NOW_P="(?:по\\s+)?(?:настоящее\\s+время|наст\\.\\s*вр\\p{L}*\\.?|н\\.\\s?в\\.|сейчас|present|current|now|today|till\\s+date)";
+const NOW_P="(?:по\\s+)?(?:настоящее\\s+время|наст\\.\\s*вр\\p{L}*\\.?|н\\.\\s?в\\.|сейчас|present(?:\\s+time)?|current|now|today|till\\s+date)";
 const PT_P=`(?:${MON_P}\\s*${YR_P}|\\d{1,2}[./]${YR_P}|${YR_P})`;
 const RANGE_RE=new RegExp(`${PT_P}\\s*(?:-|to|по|до)\\s*(?:${PT_P}|${NOW_P})`,"iu");
 const MONYR_RE=new RegExp(`${MON_P}\\s*${YR_P}`,"iu");
@@ -1119,8 +1267,15 @@ function structureLines(lines){
     const {t,k,one}=L[i];
     if(k==="gap"){
       // a blank line inside a list is a page break of the source PDF, not a new group
-      const nx=L.slice(i+1).find(o=>o.k!=="gap");
+      let j=i+1; while(j<L.length && L[j].k==="gap") j++;
+      const nx=L[j];
       if(last && last.t==="li" && nx && nx.k==="li") continue;
+      // space between an entry and its company line ("Senior Executive | 2021 - Present" / "DOLCE & GABBANA | ME" /
+      // duties): the company stays with the entry unless it opens the next entry (a period line follows it)
+      if(afterEntry && nx && nx.k==="text" && nx.one && nx.t.length<=70 && short(nx.t)){
+        const n2=L[j+1], n3=L[j+2];
+        if(!(n2 && n2.k==="meta") && !(n2 && n2.k!=="gap" && n3 && n3.k==="meta")) continue;
+      }
       if(out.length && out[out.length-1].t!=="gap") out.push({t:"gap"});
       last=null; afterEntry=false; continue;
     }
@@ -1132,15 +1287,36 @@ function structureLines(lines){
       const canBack=titleLike(out[out.length-1]);
       // a company line may end with a period ("NICEHAIR (бьюти-бренд, Россия и Дубай).") but is one short sentence
       const canFwd=!!nx && (nx.k==="text"||nx.k==="sub") && nx.one && nx.t.length<=80 && short(nx.t.replace(/\.$/,"")) && !/\.\s/.test(nx.t);
+      // the period closes a block of its own ("ICCE Cairo" / "Cadaver Live Dissection" / "Sep 2025", then a blank
+      // line): the block's first line is the title, its other short lines are the details
+      if(!nx || nx.k==="gap"){
+        let s=out.length; while(s>0 && out[s-1].t!=="gap" && out[s-1].t!=="entry") s--;
+        const blk=out.slice(s), line=b=>b.t==="kv" ? b.k+": "+b.text : b.text;
+        if((s===0 || out[s-1].t==="gap") && blk.length>=2 && blk.length<=4 && ["p","sub","role"].includes(blk[0].t)
+           && blk.every(b=>((b.t==="p" && b.one) || b.t==="sub" || b.t==="role" || b.t==="kv") && short(line(b)))){
+          out.splice(s);
+          out.push({t:"entry", title:line(blk[0]), sub:blk.slice(1).map(line).concat(m.place?[m.place]:[]).join(" · "), date:m.date});
+          last=null; afterEntry=false; continue;
+        }
+      }
       const back=canBack && (!canFwd || jobLike(out[out.length-1].text) || !jobLike(nx.t));
       if(back){
         title=out.pop().text;
         const b=out[out.length-1], before=out[out.length-2];
         if(titleLike(b) && (b.t==="sub" || !before || before.t==="gap" || before.t==="entry")){ sub=title; title=out.pop().text; }
       } else if(canFwd){
+        // a company line that opens the block above the period ("Adidas. GALERIA MALL" / "Moscow 02.2023 - 04.2024" /
+        // "Sales Associate") goes with this entry instead of staying behind as loose text
+        const before=out[out.length-2];
+        const company=canBack && (!before || before.t==="gap" || before.t==="entry") ? out.pop().text : "";
         title=L[++i].t.replace(/\.$/,"");
         const n=L[i+1];
         if(n && n.k==="text" && (looksLikeLocationChunk(n.t) || /\.[a-z]{2,}(\/|$)/i.test(n.t))){ sub=n.t; i++; }
+        // "2016 - 2018" / "Bishkek, Kyrgyzstan" / "KYRGYZ AVIATION UNIVERSITY": the place first, the name under it
+        else if(!company && looksLikeLocationChunk(title) && n && (n.k==="text"||n.k==="sub") && n.one && n.t.length<=100 && short(n.t)){
+          sub=title; title=n.t.replace(/\.$/,""); i++;
+        }
+        if(company) sub = sub ? company+" · "+sub : company;
       }
       if(m.place) sub = sub ? sub+" · "+m.place : m.place;
       out.push({t:"entry", title, sub, date:m.date}); last=null; afterEntry=true; continue;
@@ -1320,8 +1496,8 @@ function drawRunLine(doc, line, x, y, size){
   line.forEach(o=>{ const s=segs[segs.length-1]; if(s && s.f===o.f && s.c===o.c) s.t+=o.t; else segs.push({t:o.t, f:o.f, c:o.c}); });
   segs.forEach(s=>{ doc.setFont("Roboto",s.f); doc.setFontSize(size); doc.setTextColor(s.c[0],s.c[1],s.c[2]); doc.text(s.t,x,y); x+=doc.getTextWidth(s.t); });
 }
-async function buildResumeDoc(d, cb){
-  const f=await ensureFonts(cb);
+// k < 1: the same layout with slightly smaller text and tighter vertical spacing (see buildResumeDoc)
+function renderResumeDoc(d, f, k){
   const { jsPDF }=global.jspdf;
   const doc=new jsPDF({unit:"pt",format:"a4"});
   doc.addFileToVFS("R-r.ttf",f.reg);  doc.addFont("R-r.ttf","Roboto","normal");
@@ -1332,7 +1508,8 @@ async function buildResumeDoc(d, cb){
   const M=48, CW=W-M*2, BOTTOM=H-60;
   const GRAPH=[63,58,51], INK=[74,68,60], MUT=[124,116,104], BEI=[176,141,87], BEID=[154,120,66], LINE=[231,222,207],
         BOX=[250,246,239], CHIP=[244,236,223];
-  const BS=10, LH=14.4;                      // body size and line step
+  const BS=k<1 ? 9.7 : 10, LH=14.4*k;        // body size and line step
+  const V=v=>v*k;                            // vertical gaps
   const base=s=>s*1.02;                      // baseline offset inside a line box
   const n=s=>normText(s).trim();
   let y=0, top=0;
@@ -1413,21 +1590,21 @@ async function buildResumeDoc(d, cb){
 
   // ---- sections ----
   function sectionTitle(t){
-    need(24+LH*3);
-    if(y>top) y+=6;
+    need(V(24)+LH*3);
+    if(y>top) y+=V(6);
     fill(BEI); doc.rect(M, y+1, 2.8, 11, "F");
     const T=t.toUpperCase();
     put(T, M+10, y+10.6, "bold", 10, BEID, {charSpace:1.15});
     const x2=M+10+tw(T,"bold",10)+T.length*1.15+10;
     if(x2<W-M){ stroke(LINE,.6); doc.line(x2, y+6.6, W-M, y+6.6); }
-    y+=24;
+    y+=V(24);
   }
   function textLines(lines, x, size, lh){
     lines.forEach(l=>{ need(lh); drawRunLine(doc,l,x,y+base(size),size); y+=lh; });
   }
   function drawBlock(b, prev){
-    if(b.t==="gap"){ y+=5; return; }
-    if(b.t==="p"){ textLines(wrapRuns(doc,runsOf(b.text),CW,BS), M, BS, LH); y+=3; return; }
+    if(b.t==="gap"){ y+=V(5); return; }
+    if(b.t==="p"){ textLines(wrapRuns(doc,runsOf(b.text),CW,BS), M, BS, LH); y+=V(3); return; }
     if(b.t==="kv"){ textLines(wrapRuns(doc,[{t:b.k+": ",f:"medium",c:GRAPH},{t:b.text,f:"normal",c:INK}],CW,BS), M, BS, LH); y+=3; return; }
     if(b.t==="li"){
       const ls=wrapRuns(doc,runsOf(b.text),CW-14,BS);
@@ -1443,11 +1620,11 @@ async function buildResumeDoc(d, cb){
       const dW=b.date? tw(b.date,"medium",DS)+16 : 0;
       const tl=b.title? wrapRuns(doc,[{t:b.title,f:"bold",c:GRAPH}], CW-dW, TS) : [];
       const sl=b.sub? wrapRuns(doc,[{t:b.sub,f:"normal",c:MUT}], b.title? CW : CW-dW, 9.6) : [];
-      y+= !prev ? 0 : prev.t==="gap" ? 4 : 10;
+      y+= !prev ? 0 : prev.t==="gap" ? V(4) : V(10);
       need(Math.max(tl.length,1)*15 + (b.title? sl.length*13 : 0) + LH*2);
       if(tl.length){
-        tl.forEach((l,j)=>{ drawRunLine(doc,l,M,y+base(TS),TS); if(j===0 && b.date) put(b.date, W-M, y+base(TS), "medium", DS, BEID, {align:"right"}); y+=15; });
-        sl.forEach(l=>{ drawRunLine(doc,l,M,y+base(9.6),9.6); y+=13; });
+        tl.forEach((l,j)=>{ drawRunLine(doc,l,M,y+base(TS),TS); if(j===0 && b.date) put(b.date, W-M, y+base(TS), "medium", DS, BEID, {align:"right"}); y+=V(15); });
+        sl.forEach(l=>{ drawRunLine(doc,l,M,y+base(9.6),9.6); y+=V(13); });
       } else {
         if(sl.length) drawRunLine(doc,sl[0],M,y+base(9.6),9.6);
         if(b.date) put(b.date, W-M, y+base(9.6), "medium", DS, BEID, {align:"right"});
@@ -1512,8 +1689,9 @@ async function buildResumeDoc(d, cb){
     if(sec.title) sectionTitle(sec.title);
     if(sec.box) drawBox(sec);
     else sec.blocks.forEach((b,i)=>drawBlock(b, sec.blocks[i-1]));
-    y+=10;
+    y+=V(10);
   });
+  const lastFill=(y-top)/Math.max(1,BOTTOM-top);
 
   // ---- footer on every page: TLNT line + page number ----
   const pages=doc.getNumberOfPages();
@@ -1523,7 +1701,19 @@ async function buildResumeDoc(d, cb){
     put(footerLeft(d), M, H-29, "normal", 7.6, MUT);
     put(pages>1 ? `tlnt.ae  ·  ${p} / ${pages}` : "tlnt.ae", W-M, H-29, "normal", 7.6, MUT, {align:"right"});
   }
-  return doc;
+  return {doc, pages, lastFill};
+}
+// A last page holding only a few lines: render again a little denser and keep that version when it needs one page less.
+async function buildResumeDoc(d, cb){
+  const f=await ensureFonts(cb);
+  let r=renderResumeDoc(d, f, 1);
+  if(r.pages>1 && r.lastFill<0.3){
+    for(const k of [0.94, 0.88]){
+      const t=renderResumeDoc(d, f, k);
+      if(t.pages<r.pages){ r=t; break; }
+    }
+  }
+  return r.doc;
 }
 function uniqueStamp(){
   const d=new Date(), p=n=>String(n).padStart(2,"0");
@@ -1549,6 +1739,6 @@ function decodePayload(str){
 global.TLNT = {
   ensureFonts, extractFile, extractPdf, reconstructLines, joinRowItems, collapseTracked, cleanText, parseResume, isHeader, findPhone,
   renderPreview, buildResumeDoc, downloadResumePdf, layoutResume, normText, reflowText, BULLET_CHARS, textChars, isWatermarkLine, pageLayout, findSidebarGutter,
-  encodePayload, decodePayload, imgToDataUrl
+  encodePayload, decodePayload, imgToDataUrl, periodBand, rightStacks, joinWrapped, pageItems
 };
 })(window);
