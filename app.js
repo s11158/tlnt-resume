@@ -1076,8 +1076,8 @@ function blocksHtml(sec){
 }
 function safeImg(v){ return (typeof v==="string" && /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(v)) ? v : ""; }
 function footerLeft(d){ return (d&&d.lang==="en")
-  ? "Prepared by TLNT.AE - talent & recruitment agency, Dubai, UAE"
-  : "Подготовлено агентством TLNT.AE - подбор персонала, Дубай, ОАЭ"; }
+  ? "Prepared by TLNT.AE - hiring consultancy, Dubai, UAE"
+  : "Подготовлено TLNT.AE - консалтинг по подбору и найму, Дубай, ОАЭ"; }
 function renderPreview(el, d){
   ensureCss();
   const n=s=>normText(s).trim();
@@ -1087,7 +1087,7 @@ function renderPreview(el, d){
   const photoHtml = photo ? `<img class="p-photo" src="${photo}">` : "";
   const personal=n(d.personal);
   el.innerHTML=`
-    <div class="p-mast">${logoHtml}<div class="p-tag">Talent Agency<br>United Arab Emirates</div></div>
+    <div class="p-mast">${logoHtml}<div class="p-tag">Hiring Consultancy<br>United Arab Emirates</div></div>
     <div class="p-headrow">
       <div class="p-headmain">
         <div class="p-name">${escapeHtml(n(d.name)||n(d.head)||"Имя Фамилия")}</div>
@@ -1161,7 +1161,7 @@ async function buildResumeDoc(d, cb){
     const t1=doc.getTextWidth("TLNT");
     font("bold", first?16:11.5, BEI); doc.text(".", M+t1+2, baseY); const dw=doc.getTextWidth(".");
     font("bold", first?16:11.5, GRAPH); doc.text("AE", M+t1+dw+3, baseY, {charSpace:1.1});
-    if(first) put("TALENT AGENCY · UAE", W-M, baseY-6, "normal", 7.5, BEID, {align:"right", charSpace:1.4});
+    if(first) put("HIRING CONSULTANCY · UAE", W-M, baseY-6, "normal", 7.5, BEID, {align:"right", charSpace:1.4});
     else if(runHead){
       let t=runHead; font("normal",8,MUT);
       while(t.length>4 && doc.getTextWidth(t)>CW-110) t=t.slice(0,-2);
