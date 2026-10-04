@@ -28,7 +28,7 @@ a{color:var(--beige-deep)}
 .topbar .right{font-size:12px;color:var(--muted);text-align:right;max-width:330px;line-height:1.5}
 .lock{display:inline-flex;align-items:center;gap:6px;background:#EEF6EE;color:#3c7a4a;border:1px solid #cfe6cf;border-radius:20px;padding:5px 12px;font-size:12px}
 .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:26px}
-@media(max-width:980px){.grid{grid-template-columns:1fr}}
+@media(max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}}   /* minmax(0,..): long fields never widen the page on phones */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
 .panel{padding:22px}
 .panel h2{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--beige-deep);margin:0 0 14px;font-weight:700}
@@ -47,7 +47,7 @@ textarea.paste:focus{outline:none;border-color:var(--beige)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
 .field{display:flex;flex-direction:column;gap:5px;margin-top:12px}
 .field label{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:500}
-.field input,.field textarea,select{border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--ink);background:#fff;width:100%}
+.field input,.field textarea,select{min-width:0;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--ink);background:#fff;width:100%}
 .field textarea{min-height:60px;resize:vertical;line-height:1.5}
 .field input:focus,.field textarea:focus,select:focus{outline:none;border-color:var(--beige)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -65,7 +65,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 .btn-mini:hover{background:#E9DECB;color:var(--ink)}
 .sec{border:1px solid var(--line);border-radius:11px;margin-top:12px;overflow:hidden;background:#FCFAF6}
 .sec-head{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#F6EFE3}
-.sec-head input{flex:1;border:none;background:transparent;font-weight:700;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:var(--beige-deep)}
+.sec-head input{flex:1;min-width:0;border:none;background:transparent;font-weight:700;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:var(--beige-deep)}
 .sec-head input:focus{outline:none}
 .sec textarea{border:none;border-top:1px solid var(--line);border-radius:0;min-height:80px}
 .handle{cursor:grab;color:var(--beige-soft);font-size:15px;padding:0 4px}
@@ -84,6 +84,9 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 .preview-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap}
 .preview-toolbar .t{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--beige-deep);font-weight:700}
 .page{background:#fff;color:#3f3a33;aspect-ratio:1/1.414;width:100%;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;padding:6% 6.5%;font-size:clamp(7px,1.1vw,11px);position:relative}
+.page.full{aspect-ratio:auto;overflow:visible;padding-bottom:calc(6% + 3em)}
+#pagesNote{margin-top:10px;text-align:center;display:none}
+#pagesNote .btn-mini{margin-left:6px}
 .p-mast{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.4px solid var(--beige);padding-bottom:2.6%}
 .p-logo{font-weight:700;letter-spacing:.1em;font-size:1.7em;color:var(--graphite)}.p-logo .dot{color:var(--beige)}
 .p-tag{font-size:.68em;letter-spacing:.26em;text-transform:uppercase;color:var(--beige-deep);text-align:right;line-height:1.5;margin-top:.3em}
@@ -252,6 +255,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
           <div class="empty-preview"><div style="font-size:34px">📄</div>
             <div>Здесь появится резюме в фирменном стиле TLNT.AE</div></div>
         </div>
+        <div class="muted" id="pagesNote"></div>
         <div style="margin-top:10px;text-align:center" class="muted" id="multiNote"></div>
       </div>
     </div>
@@ -264,27 +268,35 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-si
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 <script>
 const $=s=>document.querySelector(s);
 const status=m=>{ $("#status").textContent=m||""; };
 const cb=(m,p)=>{ status(m); const b=$("#bar"); b.classList.toggle("show",!!m); if(p!=null)$("#bar i").style.width=Math.round(p*100)+"%"; };
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 let photoData="", lastFiles=[], mode="full";   // mode: "full" | "blind"
-let lang="ru", langCache={}, modalData=null;   // lang: "ru" | "en"
-let curSlug=null, curDel=null, autoTimer=null, autoSeq=0;   // auto-link state (in memory only)
+let lang="ru", langCache={};   // lang: "ru" | "en"
+// Auto-link state (in memory only): one short link per variant of the loaded resume ("full-ru", "blind-en", ...).
+// A variant's link is updated in place on every change, so a link that was already sent never breaks,
+// and a blind link never receives the contact data of the full version.
+let links={}, autoTimer=null, linkBusy=false, linkDirty=false, linkShownOnce=false, pagesTimer=null, pagesSeq=0;
 
 /* short-link + translation backend (Cloudflare Worker on cv.tlnt.ae). If unreachable, links fall back to long form. */
 const CV_API = "https://cv.tlnt.ae/api/save";
-const CV_DELETE = "https://cv.tlnt.ae/api/delete";
+const CV_UPDATE = "https://cv.tlnt.ae/api/update";
 const CV_TRANSLATE = "https://cv.tlnt.ae/api/translate";
 
-/* ---- downscale a dataURL (for compact share links) ---- */
-function shrinkDataUrl(dataUrl, maxW, q){
+/* ---- downscale a dataURL (compact share links, the photo field) ----
+   Drawing through a canvas also applies the EXIF orientation of phone photos (jsPDF ignores it) and turns
+   webp / gif / png into a JPEG. bySide: limit the longest side instead of the width. */
+function shrinkDataUrl(dataUrl, maxW, q, bySide){
   return new Promise(res=>{
     const img=new Image();
-    img.onload=()=>{ const s=img.width>maxW?maxW/img.width:1; const c=document.createElement("canvas");
-      c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
-      c.getContext("2d").drawImage(img,0,0,c.width,c.height); res(c.toDataURL("image/jpeg",q||0.72)); };
+    img.onload=()=>{ const lim=bySide?Math.max(img.width,img.height):img.width, s=lim>maxW?maxW/lim:1;
+      const c=document.createElement("canvas");
+      c.width=Math.max(1,Math.round(img.width*s)); c.height=Math.max(1,Math.round(img.height*s));
+      const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height);   // transparent png: white, not black
+      x.drawImage(img,0,0,c.width,c.height); res(c.toDataURL("image/jpeg",q||0.72)); };
     img.onerror=()=>res(dataUrl); img.src=dataUrl;
   });
 }
@@ -303,14 +315,16 @@ function fillEditor(d){
 }
 function detectLang(d){
   const t=(d.name||"")+" "+(d.head||"")+" "+(d.personal||"")+" "+((d.sections||[]).map(s=>(s.title||"")+(s.body||"")).join(" "));
-  return /[а-яё]/i.test(t)?"ru":"en";
+  // by the share of Cyrillic letters: one stray Cyrillic "С" in an English CV must not make it Russian
+  const cyr=(t.match(/[а-яё]/gi)||[]).length, lat=(t.match(/[a-z]/gi)||[]).length;
+  return cyr>lat*0.3?"ru":"en";
 }
 function renderEditor(d){
   $("#editorHint").style.display="none"; $("#editorBody").style.display="block";
   lang=detectLang(d); langCache={};
   fillEditor(d);
   setLangUI();
-  curSlug=null; curDel=null;   // new resume -> fresh auto-link; previously shared links stay intact
+  links={}; linkShownOnce=false;   // new resume: fresh auto-links; links shared earlier stay intact
   setMode("full");
   resetShare();
   langCache[lang]=collect();
@@ -318,9 +332,9 @@ function renderEditor(d){
 function addSection(title,body){
   const el=document.createElement("div"); el.className="sec";
   el.innerHTML=`<div class="sec-head"><span class="handle">⋮⋮</span>
-    <input class="sTitle" value="${(title||"").replace(/"/g,'&quot;')}" placeholder="НАЗВАНИЕ РАЗДЕЛА">
+    <input class="sTitle" value="${esc(title)}" placeholder="НАЗВАНИЕ РАЗДЕЛА">
     <button class="btn-mini up" title="Выше">▲</button><button class="btn-mini down" title="Ниже">▼</button><button class="btn-mini del">✕</button></div>
-    <textarea class="sBody" placeholder="Содержание…">${(body||"").replace(/</g,"&lt;")}</textarea>`;
+    <textarea class="sBody" placeholder="Содержание…">${esc(body)}</textarea>`;
   $("#sections").appendChild(el);
   el.querySelector(".del").onclick=()=>{el.remove();updatePreview();};
   el.querySelector(".up").onclick=()=>{const p=el.previousElementSibling;if(p)el.parentNode.insertBefore(el,p);updatePreview();};
@@ -394,35 +408,79 @@ async function setLang(target){
   if(target===lang || $(".lang-opt").disabled) return;
   if($("#editorBody").style.display==="none"){ lang=target; setLangUI(); return; } // nothing loaded yet
   langCache[lang]=collect();                                  // preserve edits in the current language
-  if(langCache[target]){ lang=target; fillEditor(langCache[target]); setLangUI(); updatePreview(); status(""); return; }
+  if(langCache[target]){ lang=target; syncShareToVariant(); fillEditor(langCache[target]); setLangUI(); updatePreview(); status(""); return; }
   setLangDisabled(true); cb("Перевод "+(target==="en"?"на английский":"на русский")+"…",0.3);
   try{
     const translated=await translateData(langCache[lang]||collect(), lang, target);
-    langCache[target]=translated; lang=target; fillEditor(translated); cb(""); status("Переведено ✓ Проверьте текст перед сохранением.");
+    langCache[target]=translated; lang=target; syncShareToVariant(); fillEditor(translated); cb(""); status("Переведено ✓ Проверьте текст перед сохранением.");
   }catch(e){
     cb(""); status("⚠️ Перевод пока недоступен (бэкенд перевода ещё не подключён). Версия осталась на "+(lang==="ru"?"русском":"английском")+".");
   }finally{ setLangDisabled(false); setLangUI(); updatePreview(); }
 }
 /* blind mode: strip everything that identifies the candidate, keep the professional profile */
+// Blind mode safety net: contacts the parser left inside sections (letter-spaced designer CVs put the phone,
+// e-mail and surname into a "PROFILE" block) must not reach the client either. Dates and salary ranges stay.
+function scrubBlind(t, names){
+  if(!t) return t;
+  const yearsOnly=/^\s*((19|20)\d\d\D*)+$/;
+  return String(t).split("\n").map(line=>{
+    const compact=line.replace(/\s+/g,"");
+    if(/[^@\s]+@[^@\s]+\.[a-z]{2,}/i.test(compact)) return null;                         // e-mail, also "e c a t @ g m a i l . c o m"
+    let l=line
+      .replace(/(https?:\/\/|www\.)\S+/gi,"")
+      .replace(/\b(linkedin\.com|t\.me|wa\.me|instagram\.com|facebook\.com)\/\S*/gi,"")
+      .replace(/(^|[\s(])@[A-Za-z0-9_.]{3,}/g,"$1")
+      .replace(/\+?\d[\d\s().\-]{7,}\d/g, m=>{
+        const dg=m.replace(/\D/g,"");
+        const phone=dg.length>=9 && !yearsOnly.test(m) && (/^\s*(\+|0)/.test(m) || (dg.length>=10 && !/\s[--]\s/.test(m)));
+        return phone ? "" : m;
+      });
+    for(const n of names){
+      l=l.replace(new RegExp("(^|[^\\p{L}])"+n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=$|[^\\p{L}])","giu"),"$1");
+    }
+    if(compact && !l.replace(/[\s:;,.|·•+()\/-]/g,"")) return null;                       // the line held only contacts
+    if(l!==line && /^\s*(phone|tel|telephone|mobile|whats\s?app|telegram|e-?mail|linkedin|instagram|телефон|тел|моб|почта|телеграм|ватсап)\.?\s*:?\s*$/i.test(l)) return null;   // a label left without its value
+    return l.replace(/\s{2,}/g," ").replace(/\s+([,.;:])/g,"$1");
+  }).filter(x=>x!==null).join("\n");
+}
 function applyMode(d){
   if(mode!=="blind") return d;
   const c=JSON.parse(JSON.stringify(d));
+  const names=String(d.name||"").split(/[^\p{L}'-]+/u).filter(w=>w.length>=3);
   c.name=(c.lang==="en")?"Candidate":"Кандидат"; c.email=""; c.phone=""; c.link="";   // photo is kept on purpose
+  c.head=scrubBlind(c.head,names); c.loc=scrubBlind(c.loc,names); c.personal=scrubBlind(c.personal,names);
+  c.sections=(c.sections||[]).map(s=>({...s, title:scrubBlind(s.title,names), body:scrubBlind(s.body,names)}));
   return c;
 }
 function setMode(m){
   mode=(m==="blind")?"blind":"full";
   document.querySelectorAll(".ms-opt").forEach(b=>b.classList.toggle("active", b.dataset.m===mode));
   $("#blindNote").classList.toggle("show", mode==="blind");
+  syncShareToVariant();
   updatePreview();
 }
-function updatePreview(){ if($("#editorBody").style.display==="none") return; TLNT.renderPreview($("#page"), applyMode(collect())); scheduleAutolink(); }
+function updatePreview(){ if($("#editorBody").style.display==="none") return; TLNT.renderPreview($("#page"), applyMode(collect())); scheduleAutolink(); schedulePages(); }
 function scheduleAutolink(){ clearTimeout(autoTimer); autoTimer=setTimeout(()=>regenLink().catch(()=>{}), 1400); }
+// The preview is one A4 sheet; tell how many pages the PDF really has and let the user unfold the whole preview.
+function schedulePages(){ clearTimeout(pagesTimer); pagesTimer=setTimeout(()=>updatePagesNote().catch(()=>{}), 900); }
+async function updatePagesNote(){
+  const seq=++pagesSeq, pg=$("#page"), note=$("#pagesNote");
+  let n=0;
+  try{ n=(await TLNT.buildResumeDoc(applyMode(collect()))).getNumberOfPages(); }catch(e){}
+  if(seq!==pagesSeq) return;
+  const full=pg.classList.contains("full"), cut=!full && pg.scrollHeight>pg.clientHeight+4;
+  if(!n) n=Math.max(1, Math.ceil(pg.scrollHeight/Math.max(1,pg.clientHeight)));
+  if(n<=1 && !cut && !full){ note.style.display="none"; return; }
+  note.style.display="block";
+  note.innerHTML = (n>1 ? `В PDF ${n} стр.` : "PDF: 1 стр.") + (full ? " Показан весь текст." : " Предпросмотр показывает первую страницу.")
+    + `<button type="button" class="btn-mini" id="pagesToggle">${full?"Свернуть":"Показать всё"}</button>`;
+  $("#pagesToggle").onclick=()=>{ pg.classList.toggle("full"); updatePagesNote().catch(()=>{}); };
+}
 
 /* ---- pipeline ---- */
 async function handleFiles(files){
   files=[...files].filter(Boolean); if(!files.length) return; lastFiles=files;
-  $("#fileChips").innerHTML=files.map(f=>`<span class="chip">📄 <b>${f.name}</b></span>`).join("");
+  $("#fileChips").innerHTML=files.map(f=>`<span class="chip">📄 <b>${esc(f.name)}</b></span>`).join("");
   try{
     cb("Обрабатываю…",0.05);
     let all=[], photo="";
@@ -431,7 +489,8 @@ async function handleFiles(files){
       all.push(r.text||""); if(!photo && r.photo) photo=r.photo;
     }
     let text=TLNT.cleanText(all.join("\n\n"), true);
-    if(!text.trim() && !photo){ cb(""); status("Не удалось извлечь текст. Для фото попробуйте другой язык OCR/чёткое изображение."); return; }
+    // nothing readable (empty file, blank or unreadable scan): say so, never open an empty resume that would give a blank PDF
+    if(TLNT.textChars(text)<20){ cb(""); status("Не удалось распознать текст: файл пустой или скан нечёткий. Загрузите файл с текстом или более чёткий скан/фото, либо вставьте текст во вкладке \"Текст\"."); return; }
     const parsed=TLNT.parseResume(text); parsed.photo=photo;
     renderEditor(parsed);
     cb(""); status("Распознано ✓ Проверьте поля, сохраните или скачайте PDF.");
@@ -441,32 +500,52 @@ async function handleFiles(files){
 
 /* nothing about candidates is stored in the browser - only the link carries the data */
 function shareUrl(payload){ return location.origin+location.pathname.replace(/index\.html$/,"")+"view.html#"+payload; }
-// Auto-create / refresh the resume link whenever the resume is ready or changes.
-// Deletes the previous auto-copy of THIS resume so nothing accumulates. Nothing is stored in the browser.
+// Auto-create / refresh the resume link whenever the resume is ready or changes. The link of the current variant
+// (full / blind x RU / EN) is UPDATED in place, so a link already sent keeps working and shows the latest version.
+// Nothing is deleted automatically. Nothing is stored in the browser.
+function linkKey(){ return mode+"-"+lang; }
+// the share field always shows the link of the variant on screen (never the full link while blind mode is on)
+function syncShareToVariant(){
+  const v=links[linkKey()];
+  if(v){ $("#shareLink").value=v.url; $("#openLink").href=v.url; }
+  else if($("#shareLink").value){ $("#shareLink").value=""; $("#openLink").removeAttribute("href"); $("#langStatus").textContent="ссылка обновляется…"; }
+}
+const postJson=(url,body)=>fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+// one save / update at a time; a change made meanwhile runs one more round with fresh data (no races, no orphan copies)
 async function regenLink(){
+  if(linkBusy){ linkDirty=true; return; }
+  linkBusy=true;
+  try{ do{ linkDirty=false; await regenLinkOnce(); } while(linkDirty); }
+  finally{ linkBusy=false; }
+}
+async function regenLinkOnce(){
+  if($("#editorBody").style.display==="none") return;
   const d=applyMode(collect());
   if(!d.name && !d.sections.length) return;
   if(document.querySelector(".lang-opt:disabled")){ scheduleAutolink(); return; }  // wait until a translation finishes
-  const seq=++autoSeq;
+  const key=linkKey(), prev=links[key];
   const data=JSON.parse(JSON.stringify(d));
   if(data.photo) data.photo=await shrinkDataUrl(data.photo,210,0.7);               // keep payload compact
   const payload=TLNT.encodePayload(data);                                          // self-contained fallback
-  const prevSlug=curSlug, prevDel=curDel;
   $("#langStatus").textContent="ссылка обновляется…";
-  let shortUrl="", del="", slug="";
-  try{
-    const r=await fetch(CV_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
-    if(r.ok){ const jr=await r.json(); if(jr&&jr.url){ shortUrl=jr.url; del=jr.del||""; slug=jr.slug||""; } }
-  }catch(e){ /* offline / backend down -> long link */ }
-  if(seq!==autoSeq){ // a newer change superseded this one -> drop the copy we just made
-    if(slug&&del) fetch(CV_DELETE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,del})}).catch(()=>{});
-    return;
+  let res=null;
+  if(prev){   // this variant already has a short link: update it, the URL stays the same
+    try{
+      const r=await postJson(CV_UPDATE,{slug:prev.slug, del:prev.del, data});
+      if(r.ok){ const jr=await r.json(); if(jr&&jr.url) res={slug:jr.slug||prev.slug, del:jr.del||prev.del, url:jr.url}; }
+    }catch(e){ /* a worker without /api/update (404 without CORS) or offline: fall back below */ }
   }
-  if(prevSlug&&prevDel) fetch(CV_DELETE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug:prevSlug,del:prevDel})}).catch(()=>{});
-  curSlug=slug||null; curDel=del||null; modalData=d;
-  const url=shortUrl||shareUrl(payload);
-  showShare(url, d.name, !!shortUrl);
-  $("#langStatus").textContent = shortUrl ? "ссылка готова ✓" : "ссылка готова (длинная) ✓";
+  if(!res){   // no link yet or update unavailable: a NEW short link; an older one is left as it is (never deleted)
+    try{
+      const r=await postJson(CV_API,data);
+      if(r.ok){ const jr=await r.json(); if(jr&&jr.url&&jr.slug) res={slug:jr.slug, del:jr.del||"", url:jr.url}; }
+    }catch(e){ /* offline / backend down: long link */ }
+  }
+  if(res) links[key]=res;
+  if(key!==linkKey()) return;          // the user switched variant meanwhile: the next round shows that one
+  const url=res ? res.url : shareUrl(payload);
+  showShare(url, d.name, !!res);
+  $("#langStatus").textContent = res ? "ссылка готова ✓" : "ссылка готова (длинная) ✓";
   setTimeout(()=>{ if($("#langStatus").textContent.startsWith("ссылка готова")) $("#langStatus").textContent=""; }, 2500);
 }
 function showShare(url,name,isShort){
@@ -474,9 +553,14 @@ function showShare(url,name,isShort){
   if(isShort) $("#modalDesc").textContent="Короткая ссылка на резюме - открывается в любом браузере, можно скачать PDF.";
   else if(url.length>6000) $("#modalDesc").textContent="Длинная ссылка (с фото). Открывается в любом браузере; лучше отправлять через мессенджер.";
   else $("#modalDesc").textContent="Ссылка содержит всё резюме целиком - открывается в любом браузере.";
-  $("#shareBar").scrollIntoView({behavior:"smooth",block:"nearest"});
+  // bring the link into view once per loaded resume, and never while the user is typing in a field
+  if(!linkShownOnce){
+    linkShownOnce=true;
+    const a=document.activeElement;
+    if(!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) $("#shareBar").scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
 }
-function resetShare(){ $("#shareLink").value=""; $("#openLink").removeAttribute("href"); modalData=null;
+function resetShare(){ $("#shareLink").value=""; $("#openLink").removeAttribute("href");
   $("#modalDesc").textContent="Короткая ссылка создаётся автоматически и обновляется при изменениях. \"Скачать PDF\" работает в любой момент."; }
 
 /* ---- wiring ---- */
@@ -494,7 +578,12 @@ $("#parsePaste").onclick=()=>{ let t=$("#pasteArea").value; if(!t.trim()){status
   const p=TLNT.parseResume(TLNT.cleanText(t,true)); renderEditor(p); status("Разобрано ✓"); };
 $("#addSec").onclick=()=>addSection("","");
 document.querySelectorAll(".ms-opt").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
-$("#photoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>setPhoto(r.result); r.readAsDataURL(f); });
+// photo: upright (EXIF), at most 600 px, JPEG - the same picture in the preview, the PDF and the link
+$("#photoInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>shrinkDataUrl(r.result,600,0.85,true).then(d=>{
+    if(!/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(d)){ status("Этот формат фото не поддерживается - загрузите JPG или PNG."); return; }
+    setPhoto(d); });
+  r.readAsDataURL(f); e.target.value=""; });
 $("#photoRemove").onclick=()=>setPhoto("");
 // field edits update the preview (attached once; fields are static in the DOM)
 ["#fName","#fHead","#fEmail","#fPhone","#fLoc","#fLink","#fPersonal"].forEach(s=>$(s).addEventListener("input",updatePreview));
@@ -502,9 +591,17 @@ $("#photoRemove").onclick=()=>setPhoto("");
 document.querySelectorAll(".lang-opt").forEach(b=>b.onclick=()=>setLang(b.dataset.lang).catch(()=>{}));
 // share modal
 $("#copyLink").onclick=()=>{ const i=$("#shareLink"); if(!i.value){ status("Ссылка ещё создаётся - секунду…"); return; } i.select(); navigator.clipboard.writeText(i.value).then(()=>{$("#copyLink").textContent="✓";setTimeout(()=>$("#copyLink").textContent="📋",1400);}).catch(()=>{try{document.execCommand("copy");}catch(e){}}); };
-$("#modalDownload").onclick=()=>{ const d = modalData || ($("#editorBody").style.display!=="none" ? applyMode(collect()) : null);
-  if(!d || (!d.name && !(d.sections&&d.sections.length))){ status("Сначала загрузите резюме."); return; }
-  const b=$("#modalDownload"); b.textContent="Готовлю…"; TLNT.downloadResumePdf(d).then(()=>b.textContent="⬇ Скачать PDF").catch(e=>{b.textContent="Ошибка";console.error(e);}); };
+// the PDF is always built from the editor as it is at the moment of the click (blind mode, removed photo, last edit)
+$("#modalDownload").onclick=()=>{
+  if($("#editorBody").style.display==="none"){ status("Сначала загрузите резюме."); return; }
+  const raw=collect();
+  if(!raw.name && !raw.sections.some(s=>(s.body||"").trim())){ status("PDF не создан: в резюме нет данных. Заполните имя или хотя бы один раздел."); return; }
+  const d=applyMode(raw), b=$("#modalDownload");
+  b.textContent="Готовлю…"; b.disabled=true;
+  TLNT.downloadResumePdf(d)
+    .then(()=>{ b.textContent="⬇ Скачать PDF"; })
+    .catch(e=>{ console.error(e); b.textContent="⬇ Скачать PDF"; status("PDF не создан: "+((e&&e.message)||e)); })
+    .finally(()=>{ b.disabled=false; }); };
 
 // open a saved resume for editing: tlnt.ae/tlnt-resume/#cv=<token> ("Править на сайте" in the Telegram bot)
 (async function(){

@@ -58,16 +58,18 @@ button:hover{background:#2f2b25}
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 <script>
 const hash=decodeURIComponent(location.hash.replace(/^#/,""));
 const data=hash?TLNT.decodePayload(hash):null;
 if(!data){ document.querySelector("#page").style.display="none"; document.querySelector("#stage")&&0; document.querySelector(".stage").style.display="none"; document.querySelector("#err").style.display="block"; }
 else{
   TLNT.renderPreview(document.querySelector("#page"), data);
-  document.title=(data.name||"Резюме")+" · TLNT.AE";
+  document.title="Резюме · TLNT.AE";   // never put the candidate name in the tab title / browser history
   const btn=document.querySelector("#dl"); btn.style.display="inline-block";
-  btn.onclick=()=>{ btn.textContent="Готовлю…"; TLNT.downloadResumePdf(data).then(()=>btn.textContent="⬇ Скачать PDF").catch(e=>{btn.textContent="Ошибка";console.error(e);}); };
+  btn.onclick=()=>{ btn.textContent="Готовлю…"; btn.title="";
+    TLNT.downloadResumePdf(data).then(()=>btn.textContent="⬇ Скачать PDF")
+      .catch(e=>{ console.error(e); btn.textContent="Не удалось - нажмите ещё раз"; btn.title=(e&&e.message)||String(e); }); };
   TLNT.ensureFonts().catch(()=>{});
 }
 </script>
