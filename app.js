@@ -235,7 +235,7 @@ function detectLocation(lines){
     for(let ch of chunks){
       ch=ch.trim();
       const hadPrefix=LOC_PREFIX_RE.test(ch);
-      if(!hadPrefix){                                         // "archvadze89@gmail.com +971502608464 Dubai": the city after the contacts
+      if(!hadPrefix){                                         // "name@example.com +971500000000 Dubai": the city after the contacts
         const ph=findPhone(ch);
         let rest=ch.replace(EMAIL_G_RE," ").replace(/(https?:\/\/|www\.)\S+/gi," ");
         if(ph) rest=rest.split(ph).join(" ");
